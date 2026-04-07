@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-lang="cn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>使用教程 3.9.4 - SuperPicky 慧眼选鸟</title>
+    <meta name="description" content="SuperPicky 3.9.4 使用教程 - 历史版本图文教程。">
+    <link rel="stylesheet" href="css/style.css?v=20260325">
+    <link rel="icon" href="img/icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Subtle grain overlay -->
+    <div class="grain"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-inner">
+            <a href="index.html" class="logo">
+                <img src="img/icon.png" alt="SuperPicky">
+                <span>SuperPicky</span>
+            </a>
+            <div class="lang-switch">
+                <button class="lang-btn active" onclick="setLang('cn')">中</button>
+                <button class="lang-btn" onclick="setLang('en')">EN</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tutorial Hero -->
+    <section class="tutorial-hero">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">
+                    <span class="lang-cn">使用教程</span>
+                    <span class="lang-en">Tutorial</span>
+                </span>
+            </div>
+            <h1>
+                <span class="lang-cn">从入门到精通</span>
+                <span class="lang-en">From Beginner to Expert</span>
+            </h1>
+            <p class="tutorial-intro">
+                <span class="lang-cn">本教程将带您一步步了解如何使用慧眼选鸟进行智能选片，即使您是电脑新手也能轻松上手。</span>
+                <span class="lang-en">This tutorial will guide you step by step through using SuperPicky for intelligent
+                    photo culling, even if you're new to computers.</span>
+            </p>
+        </div>
+    </section>
+
+    <!-- Table of Contents -->
+    <section class="tutorial-toc">
+        <div class="container">
+            <div class="toc-grid">
+                <a href="#part1" class="toc-item">
+                    <span class="toc-num">01</span>
+                    <span class="toc-title">
+                        <span class="lang-cn">快速开始</span>
+                        <span class="lang-en">Quick Start</span>
+                    </span>
+                </a>
+                <a href="#part2" class="toc-item">
+                    <span class="toc-num">02</span>
+                    <span class="toc-title">
+                        <span class="lang-cn">理解选片结果</span>
+                        <span class="lang-en">Understanding Results</span>
+                    </span>
+                </a>
+                <a href="#part3" class="toc-item">
+                    <span class="toc-num">03</span>
+                    <span class="toc-title">
+                        <span class="lang-cn">Lightroom 使用</span>
+                        <span class="lang-en">Lightroom Workflow</span>
+                    </span>
+                </a>
+                <a href="#part4" class="toc-item">
+                    <span class="toc-num">04</span>
+                    <span class="toc-title">
+                        <span class="lang-cn">颜色标签设置</span>
+                        <span class="lang-en">Color Label Setup</span>
+                    </span>
+                </a>
+                <a href="#part5" class="toc-item">
+                    <span class="toc-num">05</span>
+                    <span class="toc-title">
+                        <span class="lang-cn">重置与重新处理</span>
+                        <span class="lang-en">Reset & Reprocess</span>
+                    </span>
+                </a>
+                <a href="#part6" class="toc-item">
+                    <span class="toc-num">06</span>
+                    <span class="toc-title">
+                        <span class="lang-cn">高级设置</span>
+                        <span class="lang-en">Advanced Settings</span>
+                    </span>
+                </a>
+                <a href="#part7" class="toc-item toc-item-new">
+                    <span class="toc-num">07 <span class="beta-badge">V4</span></span>
+                    <span class="toc-title">
+                        <span class="lang-cn">AI 鸟种识别</span>
+                        <span class="lang-en">AI Bird Identification</span>
+                    </span>
+                </a>
+                <a href="#part8" class="toc-item toc-item-new">
+                    <span class="toc-num">08 <span class="beta-badge">V4</span></span>
+                    <span class="toc-title">
+                        <span class="lang-cn">系统托盘与后台</span>
+                        <span class="lang-en">System Tray & Background</span>
+                    </span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Part 1: Quick Start -->
+    <section class="tutorial-part" id="part1">
+        <div class="container">
+            <div class="part-header">
+                <span class="part-num">01</span>
+                <h2>
+                    <span class="lang-cn">快速开始</span>
+                    <span class="lang-en">Quick Start</span>
+                </h2>
+                <p class="part-desc">
+                    <span class="lang-cn">5 分钟学会基本操作，让 AI 帮您选出最佳鸟照</span>
+                    <span class="lang-en">Learn the basics in 5 minutes and let AI pick your best bird photos</span>
+                </p>
+            </div>
+
+            <!-- Step 1.1 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">启动软件</span>
+                            <span class="lang-en">Launch the App</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">双击打开 SuperPicky 应用程序。您会看到如图所示的主界面，包含照片目录输入框、优选参数设置和控制台区域。</span>
+                            <span class="lang-en">Double-click to open SuperPicky. You'll see the main interface as
+                                shown, including the photo directory input, selection parameters, and console
+                                area.</span>
+                        </p>
+                        <div class="step-tip">
+                            <span class="tip-icon">💡</span>
+                            <span class="lang-cn">底部的「评分规则」说明了 AI 如何给照片打分，可以先浏览一下。</span>
+                            <span class="lang-en">The "Rating Rules" at the bottom explain how AI scores photos - take a
+                                moment to read them.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-image">
+                    <img src="img/en/birdid-result.jpg" alt="SuperPicky Interface">
+                </div>
+            </div>
+
+            <!-- Step 1.2: Skill Level Setup (V4.0.3 New) -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">选择摄影水平</span>
+                            <span class="lang-en">Choose Photography Level</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">首次启动时，软件会弹出摄影水平选择对话框。根据您的拍鸟经验选择合适的水平，AI 会据此调整选片的严格程度：</span>
+                            <span class="lang-en">On first launch, a skill level dialog appears. Choose based on your
+                                bird photography experience - AI adjusts selection strictness accordingly:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn"><strong>新手</strong>：宽松标准，适合初学者</span>
+                                <span class="lang-en"><strong>Beginner</strong>: Relaxed standards for new
+                                    photographers</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>初级</strong>：平衡标准，推荐选择</span>
+                                <span class="lang-en"><strong>Intermediate</strong>: Balanced standards,
+                                    recommended</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>大师</strong>：严格标准，适合高级用户</span>
+                                <span class="lang-en"><strong>Master</strong>: Strict standards for advanced
+                                    users</span>
+                            </li>
+                        </ul>
+                        <div class="step-tip">
+                            <span class="tip-icon">⚙️</span>
+                            <span class="lang-cn">您可以随时在菜单「设置 → 摄影水平...」中更改，也可以手动微调滑块进入自选模式。</span>
+                            <span class="lang-en">You can change anytime via "Settings → Photography Level...", or
+                                fine-tune sliders for custom mode.</span>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="img/en/Photography-Level.jpg" alt="Photography Level Dialog">
+                    </div>
+                </div>
+
+                <!-- Step 1.3 -->
+                <div class="tutorial-step reverse">
+                    <div class="step-content">
+                        <div class="step-number">3</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">选择照片目录</span>
+                                <span class="lang-en">Select Photo Directory</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">将您的照片文件夹直接<strong>拖入地址栏</strong>，或者点击右侧的「浏览」按钮手动选择。建议选择某一天的拍摄目录，例如
+                                    <code>2025-10-05</code>。</span>
+                                <span class="lang-en">Drag your photo folder directly into the address bar, or click
+                                    "Browse" to select manually. We recommend selecting a single day's shooting folder,
+                                    like
+                                    <code>2025-10-05</code>.</span>
+                            </p>
+                            <div class="step-tip">
+                                <span class="tip-icon">📁</span>
+                                <span class="lang-cn">支持的格式：NEF、ARW、CR3、RAF、ORF 等主流 RAW 格式，以及 JPG。</span>
+                                <span class="lang-en">Supported formats: NEF, ARW, CR3, RAF, ORF and other major RAW
+                                    formats, plus JPG.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="img/V_4_0_0/选择照片目录.png" alt="拖入照片目录">
+                    </div>
+                </div>
+
+                <!-- Step 1.3 -->
+                <div class="tutorial-step">
+                    <div class="step-content">
+                        <div class="step-number">4</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">调整参数（可选）</span>
+                                <span class="lang-en">Adjust Parameters (Optional)</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">默认参数已经过优化，适合大多数情况。您可以根据需要调整：</span>
+                                <span class="lang-en">Default parameters are optimized for most cases. You can adjust as
+                                    needed:</span>
+                            </p>
+                            <ul class="step-list">
+                                <li>
+                                    <span class="lang-cn"><strong>锐度阈值</strong>：越高越严格，推荐 400</span>
+                                    <span class="lang-en"><strong>Sharpness threshold</strong>: Higher = stricter,
+                                        recommend
+                                        400</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>美学阈值</strong>：越高越严格，推荐 5.0</span>
+                                    <span class="lang-en"><strong>Aesthetics threshold</strong>: Higher = stricter,
+                                        recommend 5.0</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>飞鸟</strong>：开启后检测飞行姿态，飞鸟照片会打绿色标签</span>
+                                    <span class="lang-en"><strong>BIF</strong>: Detects flying poses, marks with green
+                                        label</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>连拍</strong>：开启后自动识别连拍序列并分组</span>
+                                    <span class="lang-en"><strong>Burst</strong>: Auto-detects and groups burst
+                                        sequences</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>曝光</strong>：开启后检测过曝/欠曝</span>
+                                    <span class="lang-en"><strong>Exposure</strong>: Detects over/under exposure</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="step-image compact">
+                        <img src="img/V_4_0_0/调整参数-可选.png" alt="参数设置">
+                    </div>
+                </div>
+
+                <!-- Step 1.4 -->
+                <div class="tutorial-step reverse">
+                    <div class="step-content">
+                        <div class="step-number">5</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">开始处理</span>
+                                <span class="lang-en">Start Culling</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">点击右下角的<strong>「开始处理」</strong>按钮。AI
+                                    将开始分析每一张照片，控制台会实时显示处理进度和每张照片的评分结果。</span>
+                                <span class="lang-en">Click the <strong>"Start Culling"</strong> button at the bottom
+                                    right. AI will analyze each photo, and the console shows real-time progress and
+                                    rating
+                                    results.</span>
+                            </p>
+                            <div class="step-tip">
+                                <span class="tip-icon">⏱️</span>
+                                <span class="lang-cn">处理速度约 1-2 秒/张（取决于电脑配置）。857 张照片大约需要 15-20 分钟。</span>
+                                <span class="lang-en">Processing speed is about 1-2 sec/photo (depends on your
+                                    computer).
+                                    857 photos take about 15-20 minutes.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="img/V_4_0_0/处理过程的预览.png" alt="处理过程">
+                    </div>
+                </div>
+
+                <!-- Step 1.5 -->
+                <div class="tutorial-step">
+                    <div class="step-content">
+                        <div class="step-number">6</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">查看结果</span>
+                                <span class="lang-en">View Results</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">处理完成后，控制台会显示详细的统计结果：</span>
+                                <span class="lang-en">When processing completes, the console shows detailed
+                                    statistics:</span>
+                            </p>
+                            <ul class="step-list">
+                                <li>
+                                    <span class="lang-cn">★★★ 3星优选：锐度和美学都达标的最佳照片</span>
+                                    <span class="lang-en">★★★ 3-star Excellent: Best photos with both sharpness and
+                                        aesthetics</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn">★★ 2星良好：锐度或美学其一达标</span>
+                                    <span class="lang-en">★★ 2-star Good: Either sharpness or aesthetics passed</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn">★ 1星普通：有鸟但未达标</span>
+                                    <span class="lang-en">★ 1-star Average: Bird detected but below threshold</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn">✗ 0星放弃：无鸟或质量差</span>
+                                    <span class="lang-en">✗ 0-star Reject: No bird or poor quality</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="img/en/Rating-Result.jpg" alt="Rating Result">
+                    </div>
+                </div>
+
+                <!-- Step 1.6 -->
+                <div class="tutorial-step reverse">
+                    <div class="step-content">
+                        <div class="step-number">7</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">确认文件整理</span>
+                                <span class="lang-en">Confirm File Organization</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">处理完成后会弹出确认对话框。点击<strong>「是」</strong>，照片将按星级自动分类到对应文件夹：</span>
+                                <span class="lang-en">A confirmation dialog appears after processing. Click
+                                    <strong>"Yes"</strong> to auto-organize photos into rating folders:</span>
+                            </p>
+                            <ul class="step-list">
+                                <li><code>3星_优选/</code></li>
+                                <li><code>2星_良好/</code></li>
+                                <li><code>1星_普通/</code></li>
+                                <li><code>0星_放弃/</code></li>
+                            </ul>
+                            <div class="step-tip">
+                                <span class="tip-icon">🔄</span>
+                                <span class="lang-cn">如果选择「否」，照片保持原位，只写入 EXIF 评分信息。</span>
+                                <span class="lang-en">If you choose "No", photos stay in place and only EXIF ratings are
+                                    written.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-image compact">
+                        <img src="img/en/Finish-Picky.jpg" alt="File Organization">
+                    </div>
+                </div>
+            </div>
+    </section>
+
+    <!-- Part 2: Understanding Results -->
+    <section class="tutorial-part alt" id="part2">
+        <div class="container">
+            <div class="part-header">
+                <span class="part-num">02</span>
+                <h2>
+                    <span class="lang-cn">理解选片结果</span>
+                    <span class="lang-en">Understanding Results</span>
+                </h2>
+                <p class="part-desc">
+                    <span class="lang-cn">深入了解 AI 的评分逻辑和目录结构</span>
+                    <span class="lang-en">Learn about AI scoring logic and folder structure</span>
+                </p>
+            </div>
+
+            <!-- Step 2.1 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">目录结构说明</span>
+                            <span class="lang-en">Folder Structure</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">处理完成后，您的照片目录会变成这样的结构。注意 <code>3星_优选</code> 文件夹内还有
+                                <code>burst_xxx</code> 子目录，这些是 AI 自动识别的连拍序列。</span>
+                            <span class="lang-en">After processing, your photo directory will look like this. Note the
+                                <code>burst_xxx</code> subdirectories inside <code>3星_优选</code> - these are AI-detected
+                                burst sequences.</span>
+                        </p>
+                        <div class="step-tip">
+                            <span class="tip-icon">📸</span>
+                            <span class="lang-cn">连拍分组功能可以帮助您从一组连拍中快速找到最佳帧。</span>
+                            <span class="lang-en">Burst grouping helps you quickly find the best frame from a burst
+                                sequence.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_4_0_0/连拍结果分组.png" alt="目录结构">
+                </div>
+            </div>
+
+            <!-- Step 2.2 -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">理解「精焦」判定</span>
+                            <span class="lang-en">Understanding "Best Focus"</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">AI 会从 RAW
+                                文件中读取相机的对焦点位置（红色十字），并检测鸟头区域（蓝色圆圈）。如果对焦点落在鸟头区域内，就判定为<strong>「精焦」</strong>，照片会获得锐度加成。</span>
+                            <span class="lang-en">AI reads the camera's focus point (red cross) from the RAW file and
+                                detects the bird's head area (blue circle). If the focus point falls within the head
+                                it's rated as <strong>"Critical Focus"</strong> and gets a sharpness bonus.</span>
+                        </p>
+                        <div class="step-tip">
+                            <span class="tip-icon">🔴</span>
+                            <span class="lang-cn">精焦照片会被标记红色标签，方便在 Lightroom 中筛选。</span>
+                            <span class="lang-en">Critical focus photos are marked with a red label for easy filtering
+                                in
+                                Lightroom.</span>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="img/en/Focus-Point.jpg" alt="Focus Point Illustration">
+                    </div>
+                </div>
+
+                <!-- Step 2.3 -->
+                <div class="tutorial-step">
+                    <div class="step-content">
+                        <div class="step-number">3</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">理解「合焦」判定</span>
+                                <span class="lang-en">Understanding "Good Focus"</span>
+                            </h3>
+                            <p>
+                                <span
+                                    class="lang-cn">如果对焦点落在鸟的身体上（绿色区域内），但不在头部区域，就判定为<strong>「合焦」</strong>。这类照片仍然是对焦正确的，只是不在最佳位置。</span>
+                                <span class="lang-en">If the focus point falls on the bird's body (green area) but not
+                                    on
+                                    the head, it's rated as <strong>"Good Focus"</strong>. These photos are still
+                                    correctly
+                                    focused, just not at the optimal position.</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="img/V_3_9_4/合焦的示意图-对焦点在身体上.png" alt="合焦示意图">
+                    </div>
+                </div>
+
+                <!-- Step 2.4 -->
+                <div class="tutorial-step reverse">
+                    <div class="step-content">
+                        <div class="step-number">4</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">查看 Debug 图片（进阶）</span>
+                                <span class="lang-en">View Debug Images (Advanced)</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">如果您想深入了解 AI 的分析过程，可以在 Finder 中按
+                                    <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd> 显示隐藏文件，然后打开
+                                    <code>.superpicky/debug_crops/</code> 目录。</span>
+                                <span class="lang-en">To understand AI's analysis process, press
+                                    <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd> in Finder to show hidden files, then
+                                    open
+                                    <code>.superpicky/debug_crops/</code> directory.</span>
+                            </p>
+                            <p>
+                                <span class="lang-cn">这里保存了每张照片的分析结果图，显示鸟的分割掩码（绿色）、头部区域（蓝色圆圈）和对焦点（红色十字）。</span>
+                                <span class="lang-en">This contains analysis images for each photo, showing bird
+                                    segmentation mask (green), head area (blue circle) and focus point (red
+                                    cross).</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="step-image">
+                        <img src="img/V_3_9_4/鸟本体掩码与头部以及对焦点显示.png" alt="Debug 图片">
+                    </div>
+                </div>
+            </div>
+    </section>
+
+    <!-- Part 3: Lightroom Workflow -->
+    <section class="tutorial-part" id="part3">
+        <div class="container">
+            <div class="part-header">
+                <span class="part-num">03</span>
+                <h2>
+                    <span class="lang-cn">Lightroom 使用</span>
+                    <span class="lang-en">Lightroom Workflow</span>
+                </h2>
+                <p class="part-desc">
+                    <span class="lang-cn">将选片结果导入 Lightroom，高效完成后期流程</span>
+                    <span class="lang-en">Import results to Lightroom for efficient post-processing</span>
+                </p>
+            </div>
+
+            <!-- Step 3.1 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">导入到 Lightroom</span>
+                            <span class="lang-en">Import to Lightroom</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">打开 Lightroom
+                                Classic，选择<strong>「添加」</strong>方式导入照片。这样可以保留原有的目录结构和星级文件夹。</span>
+                            <span class="lang-en">Open Lightroom Classic and select <strong>"Add"</strong> import
+                                method. This preserves the original folder structure and star-rating folders.</span>
+                        </p>
+                        <div class="step-tip">
+                            <span class="tip-icon">⚠️</span>
+                            <span class="lang-cn">推荐勾选「不再导入可能重复的照片」避免重复。</span>
+                            <span class="lang-en">Recommend checking "Don't Import Suspected Duplicates".</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-image wide">
+                    <img src="img/V_3_9_4/将选鸟结果导入或者添加到 Lightroom.png" alt="导入 Lightroom">
+                </div>
+            </div>
+
+            <!-- Step 3.2 -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">读取元数据</span>
+                            <span class="lang-en">Read Metadata</span>
+                        </h3>
+                        <p>
+                            <span
+                                class="lang-cn">导入后，选中所有照片（<kbd>Cmd</kbd>+<kbd>A</kbd>），然后选择菜单<strong>「元数据」→「从文件读取元数据」</strong>。这会同步
+                                SuperPicky 写入的评分、旗标和颜色标签。</span>
+                            <span class="lang-en">After import, select all photos (<kbd>Cmd</kbd>+<kbd>A</kbd>), then go
+                                to <strong>"Metadata" → "Read Metadata from Files"</strong>. This syncs ratings, flags
+                                and color labels written by SuperPicky.</span>
+                        </p>
+                        <div class="step-tip">
+                            <span class="tip-icon">🔄</span>
+                            <span class="lang-cn">这是最关键的一步！如果不执行这一步，Lightroom 看不到评分和旗标。</span>
+                            <span class="lang-en">This is the most crucial step! Without this, Lightroom won't see
+                                ratings and flags.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-image wide">
+                    <img src="img/V_4_0_0/从文件中读取元数据.png" alt="读取元数据">
+                </div>
+            </div>
+
+            <!-- Step 3.3 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">查看评分详情</span>
+                            <span class="lang-en">View Rating Details</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">在右侧「元数据」面板中，展开「题注」字段可以看到 AI 的详细分析结果：</span>
+                            <span class="lang-en">In the right "Metadata" panel, expand "Caption" field to see detailed
+                                AI analysis:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn">最终评分和原始检测数据</span>
+                                <span class="lang-en">Final rating and original detection data</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn">AI 置信度、头部锐度、TOPIQ 美学</span>
+                                <span class="lang-en">AI confidence, head sharpness, TOPIQ aesthetics</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn">对焦状态和各项权重修正</span>
+                                <span class="lang-en">Focus status and weight adjustments</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_3_9_4/题注=选鸟打分的算法.png" alt="评分详情">
+                </div>
+            </div>
+
+            <!-- Step 3.4 -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">4</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">按质量排序</span>
+                            <span class="lang-en">Sort by Quality</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">SuperPicky 将锐度和美学评分写入了特殊字段，您可以直接按这些字段排序：</span>
+                            <span class="lang-en">SuperPicky writes sharpness and aesthetics scores to special fields
+                                for easy sorting:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn"><strong>城市</strong> = 锐度值（越高越清晰）</span>
+                                <span class="lang-en"><strong>City</strong> = Sharpness value (higher = sharper)</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>省/直辖市/自治区</strong> = 美学评分（越高越好看）</span>
+                                <span class="lang-en"><strong>State</strong> = Aesthetics score (higher = more
+                                    beautiful)</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>国家/地区</strong> = 对焦状态（精焦/合焦/偏移/失焦）</span>
+                                <span class="lang-en"><strong>Country</strong> = Focus status
+                                    (Critical/Good/Soft/Out-of-Focus)</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_4_0_0/按照鸟种的摄影质量排序.png" alt="排序字段">
+                </div>
+            </div>
+
+            <!-- Step 3.5 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">5</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">浏览连拍组</span>
+                            <span class="lang-en">Browse Burst Groups</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">进入 <code>burst_xxx</code>
+                                子目录，按「省/直辖市」排序即可快速看到这组连拍中美学评分最高的照片。注意观察照片上的旗标和颜色标签：</span>
+                            <span class="lang-en">Enter <code>burst_xxx</code> subdirectory, sort by "State" to quickly
+                                see the highest aesthetics photo in the burst. Note the flags and color labels:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn">🏳️ 白旗 = Pick 精选旗标（双维度都出色）</span>
+                                <span class="lang-en">🏳️ White flag = Pick flag (excellent in both dimensions)</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn">🟢 绿色标签 = 飞鸟</span>
+                                <span class="lang-en">🟢 Green label = BIF</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn">🔴 红色标签 = 精焦（对焦点在鸟头）</span>
+                                <span class="lang-en">🔴 Red label = Critical focus (focus point on bird head)</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step-image wide">
+                    <img src="img/V_3_9_4/连拍组按照美学排序-显示飞版和精选状态.png" alt="连拍组">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Part 4: Color Label Setup -->
+    <section class="tutorial-part alt" id="part4">
+        <div class="container">
+            <div class="part-header">
+                <span class="part-num">04</span>
+                <h2>
+                    <span class="lang-cn">颜色标签设置</span>
+                    <span class="lang-en">Color Label Setup</span>
+                </h2>
+                <p class="part-desc">
+                    <span class="lang-cn">解决中文版 Lightroom 颜色标签不显示的问题</span>
+                    <span class="lang-en">Fix color labels not showing in localized Lightroom</span>
+                </p>
+            </div>
+
+            <!-- Step 4.1 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">编辑颜色标签集</span>
+                            <span class="lang-en">Edit Color Label Set</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">如果您使用中文版 Lightroom，可能看不到绿色和红色标签。这是因为 SuperPicky
+                                使用英文名称（"Green"、"Red"），而中文版默认使用中文名称。</span>
+                            <span class="lang-en">If using localized Lightroom, you may not see green and red labels.
+                                This is because SuperPicky uses English names ("Green", "Red") while localized versions
+                                use translated names.</span>
+                        </p>
+                        <p>
+                            <span class="lang-cn">解决方法：选择菜单<strong>「元数据」→「颜色标签集」→「编辑...」</strong>，将绿色标签的名称改为
+                                <code>Green</code>，红色改为 <code>Red</code>。</span>
+                            <span class="lang-en">Solution: Go to <strong>"Metadata" → "Color Label Set" →
+                                    "Edit..."</strong>, change green label name to <code>Green</code> and red to
+                                <code>Red</code>.</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_3_9_4/常见问题-编辑色标集.png" alt="编辑颜色标签">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Part 5: Reset & Reprocess -->
+    <section class="tutorial-part" id="part5">
+        <div class="container">
+            <div class="part-header">
+                <span class="part-num">05</span>
+                <h2>
+                    <span class="lang-cn">重置与重新处理</span>
+                    <span class="lang-en">Reset & Reprocess</span>
+                </h2>
+                <p class="part-desc">
+                    <span class="lang-cn">如果想重新处理或恢复原始状态，按照以下步骤操作</span>
+                    <span class="lang-en">If you want to reprocess or restore to original state, follow these
+                        steps</span>
+                </p>
+            </div>
+
+            <!-- Step 5.1 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">发现历史记录</span>
+                            <span class="lang-en">History Detected</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">当您再次选择一个已处理过的目录时，SuperPicky 会自动检测到历史记录，并询问是否要重置。</span>
+                            <span class="lang-en">When you select a previously processed directory, SuperPicky
+                                auto-detects history and asks if you want to reset.</span>
+                        </p>
+                        <p>
+                            <span class="lang-cn">选择<strong>「是」</strong>进入重置流程，选择「否」保留现有评分继续处理。</span>
+                            <span class="lang-en">Choose <strong>"Yes"</strong> to reset, or "No" to keep existing
+                                ratings and continue.</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_3_9_4/发现历史记录，提示重置.png" alt="发现历史记录">
+                </div>
+            </div>
+
+            <!-- Step 5.2 -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">确认重置</span>
+                            <span class="lang-en">Confirm Reset</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">系统会再次确认。重置将清除所有 EXIF 标记（评分、旗标、标签）和临时文件，并将照片移回原始位置。</span>
+                            <span class="lang-en">System asks for confirmation. Reset will clear all EXIF markers
+                                (ratings, flags, labels) and temp files, and move photos back to original
+                                location.</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_3_9_4/确认重置.png" alt="确认重置">
+                </div>
+            </div>
+
+            <!-- Step 5.3 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">重置过程</span>
+                            <span class="lang-en">Reset Process</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">重置过程中控制台会显示进度。系统会删除 XMP 临时文件、重置 EXIF 元数据、恢复文件位置。</span>
+                            <span class="lang-en">Console shows progress during reset. System deletes XMP temp files,
+                                resets EXIF metadata, and restores file locations.</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="step-image">
+                    <img src="img/V_3_9_4/重置过程界面.png" alt="重置过程">
+                </div>
+            </div>
+
+            <!-- Step 5.4 -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">4</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">重置完成</span>
+                            <span class="lang-en">Reset Complete</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">重置完成后会显示恢复了多少个文件。现在目录已恢复到原始状态，您可以调整参数后重新处理。</span>
+                            <span class="lang-en">After reset, shows how many files were restored. Directory is now back
+                                to original state, and you can adjust parameters and reprocess.</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_3_9_4/目录重置完成.png" alt="重置完成">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Part 6: Advanced Settings -->
+    <section class="tutorial-part alt" id="part6">
+        <div class="container">
+            <div class="part-header">
+                <span class="part-num">06</span>
+                <h2>
+                    <span class="lang-cn">高级设置</span>
+                    <span class="lang-en">Advanced Settings</span>
+                </h2>
+                <p class="part-desc">
+                    <span class="lang-cn">自定义 AI 评分阈值和其他高级选项</span>
+                    <span class="lang-en">Customize AI rating thresholds and other advanced options</span>
+                </p>
+            </div>
+
+            <!-- Step 6.1 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">打开设置界面</span>
+                            <span class="lang-en">Open Settings</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">点击主界面右上角的设置按钮（齿轮图标）打开高级设置面板。这里可以调整：</span>
+                            <span class="lang-en">Click the settings button (gear icon) at the top right of the main
+                                interface. Here you can adjust:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn"><strong>0 星阈值</strong>：AI 置信度、最低锐度、最低美学（低于这些值判定为 0 星）</span>
+                                <span class="lang-en"><strong>0-star threshold</strong>: AI confidence, min sharpness,
+                                    min aesthetics</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>精选比例</strong>：3 星中获得 Pick 旗标的比例（默认 50%）</span>
+                                <span class="lang-en"><strong>Pick ratio</strong>: Percentage of 3-star photos getting
+                                    Pick flag (default 50%)</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>曝光阈值</strong>：过曝/欠曝像素比例超过此值判定曝光问题</span>
+                                <span class="lang-en"><strong>Exposure threshold</strong>: Pixel ratio above this
+                                    triggers exposure warning</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>界面语言</strong>：简体中文 / English</span>
+                                <span class="lang-en"><strong>Interface language</strong>: 简体中文 / English</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_4_0_0/基准参数设置.png" alt="设置界面" class="lang-cn">
+                    <img src="img/en/Rating-rules.jpg" alt="Settings Interface" class="lang-en">
+                </div>
+            </div>
+
+            <!-- Step 6.2 -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">查看隐藏文件</span>
+                            <span class="lang-en">View Hidden Files</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">如果您想深入了解选鸟算法，可以显示隐藏文件来查看 <code>.superpicky</code> 目录：</span>
+                            <span class="lang-en">To learn more about the selection algorithm, show hidden files to view
+                                the <code>.superpicky</code> directory:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn"><code>.superpicky_manifest.json</code> - 文件移动记录</span>
+                                <span class="lang-en"><code>.superpicky_manifest.json</code> - File movement
+                                    records</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><code>.superpicky/debug_crops/</code> - 分析结果图片</span>
+                                <span class="lang-en"><code>.superpicky/debug_crops/</code> - Analysis result
+                                    images</span>
+                            </li>
+                        </ul>
+                        <div class="step-tip">
+                            <span class="tip-icon">💻</span>
+                            <span class="lang-cn">macOS 显示隐藏文件快捷键：<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd></span>
+                            <span class="lang-en">macOS show hidden files:
+                                <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-image">
+                    <img src="img/V_3_9_4/显示隐藏文件-更好的了解选鸟算法.png" alt="隐藏文件">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Part 7: AI Bird Identification (V4.0.0) -->
+    <section class="tutorial-part" id="part7">
+        <div class="container">
+            <div class="part-header">
+                <span class="part-num">07 <span class="beta-badge">V4</span></span>
+                <h2>
+                    <span class="lang-cn">AI 鸟种识别</span>
+                    <span class="lang-en">AI Bird Identification</span>
+                </h2>
+                <p class="part-desc">
+                    <span class="lang-cn">V4.0.0 新功能：自动识别 11,000+ 鸟种并写入元数据</span>
+                    <span class="lang-en">V4.0.0 Feature: Automatically identify 11,000+ bird species</span>
+                </p>
+            </div>
+
+            <!-- Step 7.1 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">启用鸟种识别</span>
+                            <span class="lang-en">Enable Bird Identification</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">在主界面右侧找到「鸟种识别」面板，勾选<strong>「启用鸟种识别」</strong>复选框。识别结果将自动写入照片的 IPTC
+                                关键字、标题和简介元数据。</span>
+                            <span class="lang-en">Find the "Bird ID" panel on the right side. Check <strong>"Enable Bird
+                                    Identification"</strong>. Results will be written to IPTC keywords, title and
+                                caption metadata.</span>
+                        </p>
+                        <div class="step-tip">
+                            <span class="tip-icon">🐦</span>
+                            <span class="lang-cn">支持全球 11,000+ 鸟种识别，每种鸟类附带中英文名称和中文百科简介。AI 会智能裁剪鸟类区域以提高识别准确率。</span>
+                            <span class="lang-en">Supports 11,000+ bird species worldwide with Chinese/English names and
+                                descriptions. AI smartly crops bird region for better accuracy.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_4_0_0/选鸟中启动自动识鸟.png" alt="鸟种识别面板" class="lang-cn">
+                    <img src="img/en/Birdid.jpg" alt="Bird Identification Panel" class="lang-en">
+                </div>
+            </div>
+
+            <!-- Step 7.2 -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">配置 eBird 地区过滤</span>
+                            <span class="lang-en">Configure eBird Region Filter</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">选择拍摄地点的国家和地区，AI 将根据 eBird 数据库过滤该地区不可能出现的鸟种，大幅提高识别准确率。</span>
+                            <span class="lang-en">Select the country and region of your shooting location. AI will
+                                filter out impossible species based on eBird data, greatly improving accuracy.</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn"><strong>国家/地区</strong>：选择拍摄所在国家（如 China、Australia、United
+                                    States）</span>
+                                <span class="lang-en"><strong>Country</strong>: Select shooting country (e.g., China,
+                                    Australia, United States)</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>省/州</strong>：选择具体省份或州，可进一步缩小范围</span>
+                                <span class="lang-en"><strong>State/Province</strong>: Select province/state for more
+                                    precise filtering</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>使用 GPS</strong>：如果照片包含 GPS 信息，系统可自动检测拍摄位置</span>
+                                <span class="lang-en"><strong>Use GPS</strong>: Auto-detect shooting location if photos
+                                    have GPS data</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/en/Choose-Country.jpg" alt="eBird Filters">
+                </div>
+            </div>
+
+            <!-- Step 7.3 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">Lightroom 插件使用</span>
+                            <span class="lang-en">Lightroom Plugin Usage</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">V4.0.0 安装器会自动部署 Lightroom Classic 插件，无需离开 Lightroom 即可识别鸟种：</span>
+                            <span class="lang-en">V4.0.0 installer auto-deploys Lightroom Classic plugin for seamless
+                                bird identification:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn"><strong>启动主程序</strong>：确保 SuperPicky 正在运行，且「识鸟 API」开关已开启</span>
+                                <span class="lang-en"><strong>Start Main App</strong>: Ensure SuperPicky is running with
+                                    "Bird ID API" enabled</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>打开插件</strong>：在 Lightroom 中选择「图库」→「增效工具」→「慧眼选鸟 -
+                                    识别当前照片」</span>
+                                <span class="lang-en"><strong>Open Plugin</strong>: In Lightroom, select "Library" →
+                                    "Plug-in Extras" → "SuperPicky - Identify"</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>选择结果</strong>：从识别结果列表中选择正确的鸟种，点击「写入 EXIF」</span>
+                                <span class="lang-en"><strong>Select Result</strong>: Choose correct species from
+                                    results, click "Write to EXIF"</span>
+                            </li>
+                        </ul>
+                        <div class="step-tip">
+                            <span class="tip-icon">💡</span>
+                            <span class="lang-cn">识别结果会自动写入 Lightroom 的关键字、标题和简介字段。Caption 只写入简介，不含学名前缀。</span>
+                            <span class="lang-en">Results are written to Lightroom keywords, title and caption fields.
+                                Caption contains description only, without scientific name prefix.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-image">
+                    <img src="img/V_4_0_0/Lightroom 使用慧眼选鸟进行鸟种识别.png" alt="Lightroom 插件">
+                </div>
+            </div>
+
+            <!-- Step 7.4 -->
+            <div class="tutorial-step reverse">
+                <div class="step-content">
+                    <div class="step-number">4</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">查看识别结果</span>
+                            <span class="lang-en">View Identification Results</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">处理完成后，识别结果会写入以下元数据字段：</span>
+                            <span class="lang-en">After processing, results are written to these metadata fields:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn"><strong>标题 (Title)</strong>：中文名 / 英文名 / 学名（如：红嘴蓝鹊 / Red-billed
+                                    Blue Magpie / Urocissa erythroryncha）</span>
+                                <span class="lang-en"><strong>Title</strong>: Chinese / English / Scientific name</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>关键字 (Keywords)</strong>：鸟种名称、科名、属名等分类信息</span>
+                                <span class="lang-en"><strong>Keywords</strong>: Species name, family, genus and other
+                                    taxonomy</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn"><strong>简介 (Caption)</strong>：中文百科简介（基于维基百科翻译）</span>
+                                <span class="lang-en"><strong>Caption</strong>: Chinese description (translated from
+                                    Wikipedia)</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/en/birdid-result.jpg" alt="Bird ID Result">
+                </div>
+            </div>
+
+            <!-- Step 7.5 -->
+            <div class="tutorial-step">
+                <div class="step-content">
+                    <div class="step-number">5</div>
+                    <div class="step-text">
+                        <h3>
+                            <span class="lang-cn">按鸟种分类整理</span>
+                            <span class="lang-en">Organize by Species</span>
+                        </h3>
+                        <p>
+                            <span class="lang-cn">启用鸟种识别后，可以选择按鸟种自动创建子目录整理照片：</span>
+                            <span class="lang-en">With Bird ID enabled, you can auto-organize photos into species
+                                subdirectories:</span>
+                        </p>
+                        <ul class="step-list">
+                            <li>
+                                <span class="lang-cn">勾选「按鸟种分目录」选项</span>
+                                <span class="lang-en">Check "Organize by Species" option</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn">照片将移动到「中文名_英文名」格式的子目录</span>
+                                <span class="lang-en">Photos are moved to "Chinese_English" named subdirectories</span>
+                            </li>
+                            <li>
+                                <span class="lang-cn">RAW+JPEG 配对文件会同时移动</span>
+                                <span class="lang-en">RAW+JPEG pairs are moved together</span>
+                            </li>
+                        </ul>
+                        <div class="step-tip">
+                            <span class="tip-icon">📁</span>
+                            <span class="lang-cn">鸟种分类目录会创建在对应的星级目录下，如 3星_优选/红嘴蓝鹊_Red-billed Blue Magpie/</span>
+                            <span class="lang-en">Species folders are created under rating folders, e.g.,
+                                3星_优选/Species_Name/</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-image compact">
+                    <img src="img/V_4_0_0/选鸟结果目录结构演示.png" alt="鸟种分类目录" class="lang-cn">
+                    <img src="img/en/Finish-Picky.jpg" alt="Species Folders" class="lang-en">
+                </div>
+            </div>
+        </div>
+
+        <!-- Part 8: System Tray (V4.0.0) -->
+        <section class="tutorial-part" id="part8">
+            <div class="container">
+                <div class="part-header">
+                    <span class="part-num">08 <span class="beta-badge">V4</span></span>
+                    <h2>
+                        <span class="lang-cn">系统托盘与后台</span>
+                        <span class="lang-en">System Tray & Background</span>
+                    </h2>
+                    <p class="part-desc">
+                        <span class="lang-cn">V4.0.0 新功能：支持后台运行，配合 Lightroom 插件使用</span>
+                        <span class="lang-en">V4.0.0 Feature: Background mode for Lightroom plugin integration</span>
+                    </p>
+                </div>
+
+                <!-- Step 9.1 -->
+                <div class="tutorial-step">
+                    <div class="step-content">
+                        <div class="step-number">1</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">最小化到系统托盘</span>
+                                <span class="lang-en">Minimize to System Tray</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">V4.0.0 支持最小化到系统托盘（macOS 菜单栏），方便后台运行：</span>
+                                <span class="lang-en">V4.0.0 supports minimizing to system tray (macOS menu bar) for
+                                    background mode:</span>
+                            </p>
+                            <ul class="step-list">
+                                <li>
+                                    <span class="lang-cn">点击主窗口右上角的「最小化」按钮或关闭窗口</span>
+                                    <span class="lang-en">Click "Minimize" button at top-right or close the
+                                        window</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn">应用会隐藏主窗口，在菜单栏显示图标</span>
+                                    <span class="lang-en">App hides main window and shows icon in menu bar</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn">可选择隐藏 Dock 图标，让应用完全在后台运行</span>
+                                    <span class="lang-en">Optionally hide Dock icon for true background mode</span>
+                                </li>
+                            </ul>
+                            <div class="step-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">后台运行时，Lightroom 插件仍可正常调用识鸟 API。</span>
+                                <span class="lang-en">Lightroom plugin can still call Bird ID API when app runs in
+                                    background.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-image compact">
+                        <img src="img/V_4_0_0/系统托盘后台运行识鸟模型.png" alt="系统托盘">
+                    </div>
+                </div>
+
+                <!-- Step 9.2 -->
+                <div class="tutorial-step reverse">
+                    <div class="step-content">
+                        <div class="step-number">2</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">托盘菜单操作</span>
+                                <span class="lang-en">Tray Menu Operations</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">点击菜单栏图标可以执行以下操作：</span>
+                                <span class="lang-en">Click menu bar icon for these operations:</span>
+                            </p>
+                            <ul class="step-list">
+                                <li>
+                                    <span class="lang-cn"><strong>显示窗口</strong>：重新打开主界面</span>
+                                    <span class="lang-en"><strong>Show Window</strong>: Reopen main interface</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>识鸟 API 状态</strong>：查看 API 是否正在运行</span>
+                                    <span class="lang-en"><strong>Bird ID API Status</strong>: Check if API is
+                                        running</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>退出</strong>：完全关闭应用</span>
+                                    <span class="lang-en"><strong>Quit</strong>: Fully close the application</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="step-image compact">
+                        <img src="img/V_3_9_4/设置界面.png" alt="托盘菜单">
+                    </div>
+                </div>
+
+                <!-- Step 9.3 -->
+                <div class="tutorial-step">
+                    <div class="step-content">
+                        <div class="step-number">3</div>
+                        <div class="step-text">
+                            <h3>
+                                <span class="lang-cn">自动更新检测</span>
+                                <span class="lang-en">Auto Update Check</span>
+                            </h3>
+                            <p>
+                                <span class="lang-cn">V4.0.0 新增自动更新检测功能：</span>
+                                <span class="lang-en">V4.0.0 adds automatic update checking:</span>
+                            </p>
+                            <ul class="step-list">
+                                <li>
+                                    <span class="lang-cn">启动时自动检查是否有新版本</span>
+                                    <span class="lang-en">Auto-checks for new versions on startup</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn">发现新版本时会弹出提示</span>
+                                    <span class="lang-en">Shows notification when new version is available</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn">也可在设置中手动点击「检查更新」按钮</span>
+                                    <span class="lang-en">Can also manually click "Check for Updates" in settings</span>
+                                </li>
+                            </ul>
+                            <div class="step-tip">
+                                <span class="tip-icon">🔄</span>
+                                <span class="lang-cn">更新检测仅查看是否有新版本，不会自动下载或安装。</span>
+                                <span class="lang-en">Update check only looks for new versions, does not auto-download
+                                    or
+                                    install.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-image compact">
+                        <img src="img/V_4_0_0/检查版本更新窗口.png" alt="自动更新">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tutorial End -->
+        <section class="tutorial-end">
+            <div class="container">
+                <div class="tutorial-end-card">
+                    <h3>
+                        <span class="lang-cn">🎉 恭喜您完成教程！</span>
+                        <span class="lang-en">🎉 Congratulations on completing the tutorial!</span>
+                    </h3>
+                    <p>
+                        <span class="lang-cn">现在您已经掌握了慧眼选鸟 V4.0 的所有核心功能，包括 AI 选片、鸟种识别、Lightroom
+                            插件和命令行工具。如果还有问题，请查看常见问题解答或联系我们。</span>
+                        <span class="lang-en">You've now mastered all core features of SuperPicky V4.0, including AI
+                            selection, bird identification, Lightroom plugin and CLI tool. If you have questions, check
+                            our
+                            FAQ or contact us.</span>
+                    </p>
+                    <div class="tutorial-end-actions">
+                        <a href="faq.html" class="btn btn-primary">
+                            <span class="lang-cn">常见问题</span>
+                            <span class="lang-en">FAQ</span>
+                        </a>
+                        <a href="index.html" class="btn btn-ghost">
+                            <span class="lang-cn">返回首页</span>
+                            <span class="lang-en">Back to Home</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <div class="container">
+                <div class="footer-inner">
+                    <div class="footer-brand">
+                        <img src="img/icon.png" alt="SuperPicky">
+                        <div class="footer-brand-text">
+                            <span>SuperPicky</span>
+                            <span class="footer-author">by James Yu (詹姆斯·于震)</span>
+                        </div>
+                    </div>
+                    <div class="footer-links">
+                        <a href="faq.html">
+                            <span class="lang-cn">常见问题</span>
+                            <span class="lang-en">FAQ</span>
+                        </a>
+                        <a href="https://github.com/jamesphotography/SuperPicky">GitHub</a>
+                        <a href="https://www.youtube.com/@JamesZhenYu">YouTube</a>
+                        <a href="mailto:james@jamesphotography.com.au">
+                            <span class="lang-cn">联系</span>
+                            <span class="lang-en">Contact</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p class="credits">
+                        <span class="lang-cn">模型致谢：YOLO11 (Ultralytics) · TOPIQ (Chaofeng Chen et al.)</span>
+                        <span class="lang-en">Credits: YOLO11 (Ultralytics) · TOPIQ (Chaofeng Chen et al.)</span>
+                    </p>
+                    <p class="copyright">
+                        © 2024-2026 James Yu · <a
+                            href="https://github.com/jamesphotography/SuperPicky/blob/master/LICENSE" target="_blank"
+                            style="color: inherit; text-decoration: underline;">AGPL-3.0 License</a>
+                    </p>
+                </div>
+            </div>
+        </footer>
+
+        <!-- Language Toggle Script -->
+        <script>
+            function setLang(lang) {
+                document.documentElement.setAttribute('data-lang', lang);
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                event.target.classList.add('active');
+                localStorage.setItem('lang', lang);
+            }
+
+            // Load saved language
+            const savedLang = localStorage.getItem('lang') || 'cn';
+            document.documentElement.setAttribute('data-lang', savedLang);
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    const isCN = btn.textContent.includes('中');
+                    if ((savedLang === 'cn' && isCN) || (savedLang === 'en' && !isCN)) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            });
+
+            // Lightbox functionality
+            (function () {
+                // Create lightbox elements
+                const lightbox = document.createElement('div');
+                lightbox.id = 'lightbox';
+                lightbox.innerHTML = `
+                <div class="lightbox-overlay"></div>
+                <div class="lightbox-content">
+                    <img src="" alt="">
+                    <button class="lightbox-close">&times;</button>
+                </div>
+            `;
+                document.body.appendChild(lightbox);
+
+                // Add styles
+                const style = document.createElement('style');
+                style.textContent = `
+                #lightbox {
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 10000;
+                }
+                #lightbox.active {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .lightbox-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.9);
+                    cursor: pointer;
+                }
+                .lightbox-content {
+                    position: relative;
+                    max-width: 95vw;
+                    max-height: 95vh;
+                    z-index: 1;
+                }
+                .lightbox-content img {
+                    max-width: 95vw;
+                    max-height: 95vh;
+                    object-fit: contain;
+                    border-radius: 8px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+                }
+                .lightbox-close {
+                    position: absolute;
+                    top: -40px;
+                    right: 0;
+                    background: none;
+                    border: none;
+                    color: white;
+                    font-size: 32px;
+                    cursor: pointer;
+                    opacity: 0.7;
+                    transition: opacity 0.2s;
+                }
+                .lightbox-close:hover {
+                    opacity: 1;
+                }
+                /* Make images clickable */
+                .step-image img {
+                    cursor: zoom-in;
+                    transition: transform 0.2s;
+                }
+                .step-image img:hover {
+                    transform: scale(1.02);
+                }
+            `;
+                document.head.appendChild(style);
+
+                const lightboxImg = lightbox.querySelector('img');
+                const overlay = lightbox.querySelector('.lightbox-overlay');
+                const closeBtn = lightbox.querySelector('.lightbox-close');
+
+                // Open lightbox on image click
+                document.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'IMG' && e.target.closest('.step-image')) {
+                        lightboxImg.src = e.target.src;
+                        lightbox.classList.add('active');
+                        document.body.style.overflow = 'hidden';
+                    }
+                });
+
+                // Close lightbox
+                function closeLightbox() {
+                    lightbox.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+
+                overlay.addEventListener('click', closeLightbox);
+                closeBtn.addEventListener('click', closeLightbox);
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') closeLightbox();
+                });
+            })();
+        </script>
+</body>
+
+</html>
