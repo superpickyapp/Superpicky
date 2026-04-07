@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-lang="cn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ - 常见问题 | SuperPicky 慧眼选鸟</title>
+    <meta name="description" content="SuperPicky 慧眼选鸟常见问题解答 - Lightroom 元数据同步、颜色标签设置等">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="img/icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Subtle grain overlay -->
+    <div class="grain"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-inner">
+            <a href="index.html" class="logo">
+                <img src="img/icon.png" alt="SuperPicky">
+                <span>SuperPicky</span>
+            </a>
+            <div class="lang-switch">
+                <button class="lang-btn active" onclick="setLang('cn')">中</button>
+                <button class="lang-btn" onclick="setLang('en')">EN</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- FAQ Section -->
+    <section class="faq-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">
+                    <span class="lang-cn">常见问题</span>
+                    <span class="lang-en">FAQ</span>
+                </span>
+            </div>
+
+            <div class="faq-list">
+                <!-- FAQ 1: Metadata not showing -->
+                <div class="faq-item">
+                    <div class="faq-number">01</div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">为什么 Lightroom 里看不到评分和旗标？</span>
+                            <span class="lang-en">Why don't I see ratings and flags in Lightroom?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">慧眼选鸟 将评分写入照片的 EXIF/XMP 元数据中。如果照片已经导入
+                                    Lightroom，需要手动同步元数据：</span>
+                                <span class="lang-en">SuperPicky writes ratings to photo EXIF/XMP metadata. If photos
+                                    are already imported in Lightroom, you need to manually sync metadata:</span>
+                            </p>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn">在 Lightroom 中选中需要同步的照片（或按 Cmd/Ctrl+A 全选）</span>
+                                    <span class="lang-en">Select photos to sync in Lightroom (or press Cmd/Ctrl+A to
+                                        select all)</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">2</span>
+                                    <span class="lang-cn">菜单选择「元数据」→「从文件读取元数据」</span>
+                                    <span class="lang-en">Go to menu "Metadata" → "Read Metadata from Files"</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">3</span>
+                                    <span class="lang-cn">确认对话框，Lightroom 将从文件读取最新的评分、旗标和标签信息</span>
+                                    <span class="lang-en">Confirm the dialog, Lightroom will read the latest ratings,
+                                        flags and labels from files</span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">建议：在 Lightroom 偏好设置中开启「自动将更改写入 XMP」，这样元数据会自动双向同步。</span>
+                                <span class="lang-en">Tip: Enable "Automatically write changes into XMP" in Lightroom
+                                    Preferences for automatic two-way sync.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 2: Color Label not showing -->
+                <div class="faq-item">
+                    <div class="faq-number">02</div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">为什么飞鸟的绿色标签 / 精焦的红色标签不显示？</span>
+                            <span class="lang-en">Why aren't the green (BIF) / red (critical focus) labels
+                                showing?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">慧眼选鸟 使用英文颜色名称（如 "Green"、"Red"）写入标签。如果您的 Lightroom
+                                    使用不同的颜色标签集设置，标签可能无法正确显示。</span>
+                                <span class="lang-en">SuperPicky uses English color names (e.g., "Green", "Red") for
+                                    labels. If your Lightroom uses a different color label set, labels may not display
+                                    correctly.</span>
+                            </p>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn">打开 Lightroom，选择菜单「元数据」→「颜色标签集」</span>
+                                    <span class="lang-en">Open Lightroom, go to menu "Metadata" → "Color Label
+                                        Set"</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">2</span>
+                                    <span class="lang-cn">选择「Lightroom 默认」或「Bridge 默认」</span>
+                                    <span class="lang-en">Select "Lightroom Default" or "Bridge Default"</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">3</span>
+                                    <span class="lang-cn">如果使用中文版 Lightroom，可能需要选择「编辑...」，将绿色标签的文本改为 "Green"，红色改为
+                                        "Red"</span>
+                                    <span class="lang-en">If using localized Lightroom, you may need to select "Edit..."
+                                        and change the green label text to "Green", red to "Red"</span>
+                                </div>
+                            </div>
+                            <div class="faq-color-labels">
+                                <div class="color-label-row">
+                                    <span class="color-dot green"></span>
+                                    <span class="color-name">Green</span>
+                                    <span class="color-meaning">
+                                        <span class="lang-cn">= 飞鸟照片</span>
+                                        <span class="lang-en">= BIF photo</span>
+                                    </span>
+                                </div>
+                                <div class="color-label-row">
+                                    <span class="color-dot red"></span>
+                                    <span class="color-name">Red</span>
+                                    <span class="color-meaning">
+                                        <span class="lang-cn">= 精焦照片（对焦点在鸟头上）</span>
+                                        <span class="lang-en">= Critical focus photo (focus point on bird head)</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 3: Pick flag not showing -->
+                <div class="faq-item">
+                    <div class="faq-number">03</div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">为什么看不到精选旗标（Pick Flag）？</span>
+                            <span class="lang-en">Why don't I see the Pick Flag?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">精选旗标写入 XMP:Pick 字段。与评分一样，需要从文件读取元数据才能在 Lightroom 中显示：</span>
+                                <span class="lang-en">Pick flags are written to the XMP:Pick field. Like ratings, you
+                                    need to read metadata from files to display them in Lightroom:</span>
+                            </p>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn">选中照片 →「元数据」→「从文件读取元数据」</span>
+                                    <span class="lang-en">Select photos → "Metadata" → "Read Metadata from Files"</span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">📌</span>
+                                <span class="lang-cn">精选旗标仅授予 3 星照片中锐度和美学都排名前 25% 的交集，是最优秀的照片。</span>
+                                <span class="lang-en">Pick flags are only given to 3-star photos that rank in the top
+                                    25% for BOTH sharpness and aesthetics - these are the best of the best.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 4: Reject flag not showing -->
+                <div class="faq-item">
+                    <div class="faq-number">04</div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">为什么看不到排除旗标（Reject Flag）？</span>
+                            <span class="lang-en">Why don't I see the Reject Flag?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">0 星照片会被标记为排除旗标（XMP:Pick = -1）。同样需要从文件读取元数据：</span>
+                                <span class="lang-en">0-star photos are marked with a reject flag (XMP:Pick = -1). You
+                                    also need to read metadata from files:</span>
+                            </p>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn">选中照片 →「元数据」→「从文件读取元数据」</span>
+                                    <span class="lang-en">Select photos → "Metadata" → "Read Metadata from Files"</span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">🗑️</span>
+                                <span class="lang-cn">在 Lightroom 中，您可以按 Cmd/Ctrl+Delete 删除所有带排除旗标的照片，快速清理 0 星废片。</span>
+                                <span class="lang-en">In Lightroom, you can press Cmd/Ctrl+Delete to delete all rejected
+                                    photos, quickly cleaning up 0-star rejects.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 5: Sorting by sharpness/aesthetics -->
+                <div class="faq-item">
+                    <div class="faq-number">05</div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">如何在 Lightroom 中按锐度或美学评分排序？</span>
+                            <span class="lang-en">How to sort by sharpness or aesthetics in Lightroom?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">慧眼选鸟 将锐度和美学评分写入 XMP 的地理位置字段，可以在 Lightroom 中直接排序：</span>
+                                <span class="lang-en">SuperPicky writes sharpness and aesthetics scores to XMP location
+                                    fields, which can be sorted directly in Lightroom:</span>
+                            </p>
+                            <div class="faq-field-map">
+                                <div class="field-row">
+                                    <span class="field-name">XMP:City</span>
+                                    <span class="field-arrow">→</span>
+                                    <span class="field-meaning">
+                                        <span class="lang-cn">锐度值（000.00 - 999.99）</span>
+                                        <span class="lang-en">Sharpness (000.00 - 999.99)</span>
+                                    </span>
+                                </div>
+                                <div class="field-row">
+                                    <span class="field-name">XMP:State</span>
+                                    <span class="field-arrow">→</span>
+                                    <span class="field-meaning">
+                                        <span class="lang-cn">美学评分（00.00 - 10.00）</span>
+                                        <span class="lang-en">Aesthetics (00.00 - 10.00)</span>
+                                    </span>
+                                </div>
+                                <div class="field-row">
+                                    <span class="field-name">XMP:Country</span>
+                                    <span class="field-arrow">→</span>
+                                    <span class="field-meaning">
+                                        <span class="lang-cn">对焦状态（精焦/合焦/偏移/失焦）</span>
+                                        <span class="lang-en">Focus status (Critical/Good/Soft/Out-of-Focus)</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">在 Lightroom 图库模块中，点击「视图」→「排序」→「城市」可按锐度排序，选择「州/省」可按美学排序。</span>
+                                <span class="lang-en">In Lightroom Library module, click "View" → "Sort" → "City" to
+                                    sort by sharpness, or "State" to sort by aesthetics.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 6: Reset selection -->
+                <div class="faq-item">
+                    <div class="faq-number">06</div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">如何重置选片结果？</span>
+                            <span class="lang-en">How to reset selection results?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">慧眼选鸟 提供完整的重置功能，可以恢复文件位置和清除元数据：</span>
+                                <span class="lang-en">SuperPicky provides a complete reset function to restore file
+                                    locations and clear metadata:</span>
+                            </p>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn">打开 慧眼选鸟，选择之前处理过的目录</span>
+                                    <span class="lang-en">Open SuperPicky, select the previously processed
+                                        directory</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">2</span>
+                                    <span class="lang-cn">点击「重置」按钮</span>
+                                    <span class="lang-en">Click the "Reset" button</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">3</span>
+                                    <span class="lang-cn">所有照片将移回原始目录，评分、旗标、标签等元数据将被清除</span>
+                                    <span class="lang-en">All photos will be moved back to the original directory,
+                                        ratings, flags, labels and other metadata will be cleared</span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">⚠️</span>
+                                <span class="lang-cn">重置后需要在 Lightroom 中重新「从文件读取元数据」才能看到清除后的状态。</span>
+                                <span class="lang-en">After reset, you need to "Read Metadata from Files" in Lightroom
+                                    again to see the cleared state.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 7: V4.0.0 Features -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">07 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">V4 系列有什么重大功能更新？</span>
+                            <span class="lang-en">What's new in V4 series?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">V4 系列是一个跨越式的重大更新，搭载了全新的 OSEA 核心模型：</span>
+                                <span class="lang-en">V4 series is a major leap forward, powered by the new OSEA core
+                                    model:</span>
+                            </p>
+                            <div class="faq-image">
+                                <img src="img/en/birdid-result.jpg" alt="SuperPicky V4 Interface">
+                            </div>
+                            <ul class="faq-feature-list">
+                                <li>
+                                    <span class="lang-cn"><strong>全平台原生支持</strong> - 深度优化 Apple Silicon (M1/M2/M3/M4) 与
+                                        Windows CUDA 架构。</span>
+                                    <span class="lang-en"><strong>Native Support</strong> - Deeply optimized for Apple
+                                        Silicon (M1-M4) and Windows CUDA.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>全新 OSEA AI 引擎</strong> - 基于 ResNet34 骨干网的 OSEA
+                                        模型，自动识别全球 11,000+ 鸟种，写入 IPTC 元数据。</span>
+                                    <span class="lang-en"><strong>New OSEA AI Engine</strong> - ResNet34-based OSEA
+                                        model to identify 11,000+ species globally, writes to IPTC metadata.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>Lightroom 插件</strong> - 无需离开 Lightroom 即可识别鸟种</span>
+                                    <span class="lang-en"><strong>Lightroom Plugin</strong> - Identify birds without
+                                        leaving Lightroom</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>eBird 集成</strong> - 根据 GPS 位置过滤当地不可能出现的鸟种</span>
+                                    <span class="lang-en"><strong>eBird Integration</strong> - Filter impossible species
+                                        based on GPS location</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>鸟种分类目录</strong> - 按识别的鸟种自动创建子目录整理照片</span>
+                                    <span class="lang-en"><strong>Species Folders</strong> - Auto-organize photos into
+                                        species subdirectories</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>系统托盘</strong> - 支持后台运行，隐藏 Dock 图标</span>
+                                    <span class="lang-en"><strong>System Tray</strong> - Background mode with hidden
+                                        Dock icon</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>自动更新</strong> - 启动时自动检查新版本</span>
+                                    <span class="lang-en"><strong>Auto Update</strong> - Check for updates on
+                                        startup</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>CLI 工具</strong> - 命令行版本支持完整功能和鸟类识别</span>
+                                    <span class="lang-en"><strong>CLI Tool</strong> - Full-featured command line
+                                        interface with bird ID</span>
+                                </li>
+                            </ul>
+                            <div class="faq-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">支持 macOS Apple Silicon (M1/M2/M3/M4) 和 Intel 处理器。</span>
+                                <span class="lang-en">Supports macOS Apple Silicon (M1/M2/M3/M4) and Intel
+                                    processors.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 8: Lightroom Plugin -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">08 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">如何安装和使用 Lightroom 插件？</span>
+                            <span class="lang-en">How to install and use the Lightroom plugin?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">V4.0.0 安装时会自动部署 Lightroom Classic 插件。如果需要手动添加：</span>
+                                <span class="lang-en">V4.0.0 installer automatically deploys the Lightroom Classic
+                                    plugin. To add manually:</span>
+                            </p>
+                            <div class="faq-image">
+                                <img src="img/V_4_0_0/Lightroom 使用慧眼选鸟进行鸟种识别.png" alt="Lightroom Plugin">
+                            </div>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn">打开 Lightroom Classic「文件」→「增效工具管理器」</span>
+                                    <span class="lang-en">Open Lightroom Classic "File" → "Plug-in Manager"</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">2</span>
+                                    <span class="lang-cn">点击「添加」，选择
+                                        <code>~/Library/Application Support/Adobe/Lightroom/Modules/SuperBirdID.lrplugin</code></span>
+                                    <span class="lang-en">Click "Add", navigate to
+                                        <code>~/Library/Application Support/Adobe/Lightroom/Modules/SuperBirdID.lrplugin</code></span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">3</span>
+                                    <span class="lang-cn">确保 慧眼选鸟 应用正在运行，且「识鸟 API」开关已开启</span>
+                                    <span class="lang-en">Ensure SuperPicky app is running with "Bird ID API"
+                                        enabled</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">4</span>
+                                    <span class="lang-cn">选中照片，使用「图库」→「增效工具」→「慧眼选鸟 - 识别当前照片」</span>
+                                    <span class="lang-en">Select photos, use "Library" → "Plug-in Extras" → "SuperPicky
+                                        - Identify Bird"</span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">识别结果会自动写入 Lightroom 的关键字、标题和简介字段，无需手动同步元数据。</span>
+                                <span class="lang-en">Results are automatically written to Lightroom keywords, title and
+                                    caption fields, no manual sync needed.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 9: CLI Tool -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">09 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">如何使用命令行工具 (CLI)？</span>
+                            <span class="lang-en">How to use the Command Line Interface (CLI)?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">V4.0.0 提供完整的命令行工具，支持所有核心功能：</span>
+                                <span class="lang-en">V4.0.0 provides a full-featured CLI supporting all core
+                                    functions:</span>
+                            </p>
+                            <div class="faq-code">
+                                <code>
+                                    # 处理照片目录<br>
+                                    python superpicky_cli.py process ~/Photos/Birds<br><br>
+                                    # 自定义阈值处理<br>
+                                    python superpicky_cli.py process ~/Photos/Birds -s 600 -n 5.2<br><br>
+                                    # 处理时自动识别鸟种<br>
+                                    python superpicky_cli.py process ~/Photos/Birds --auto-identify<br><br>
+                                    # 重置目录<br>
+                                    python superpicky_cli.py reset ~/Photos/Birds<br><br>
+                                    # 重新评星<br>
+                                    python superpicky_cli.py restar ~/Photos/Birds -s 700 -n 5.5<br><br>
+                                    # 识别单张照片的鸟类<br>
+                                    python superpicky_cli.py identify ~/Photos/bird.jpg<br><br>
+                                    # 识别并写入EXIF<br>
+                                    python superpicky_cli.py identify bird.NEF --write-exif
+                                </code>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">CLI 支持纯 JPG 文件夹的自动识别处理，适合批量处理大量照片。</span>
+                                <span class="lang-en">CLI supports auto-identification for JPG-only folders, ideal for
+                                    batch processing.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 10: System Tray -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">10 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">如何使用系统托盘后台运行？</span>
+                            <span class="lang-en">How to use system tray for background mode?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">V4.0.0 新增系统托盘功能，支持后台运行：</span>
+                                <span class="lang-en">V4.0.0 adds system tray support for background mode:</span>
+                            </p>
+                            <div class="faq-image">
+                                <img src="img/V_4_0_0/系统托盘后台运行识鸟模型.png" alt="System Tray">
+                            </div>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn">点击主窗口右上角的「最小化到托盘」按钮</span>
+                                    <span class="lang-en">Click "Minimize to Tray" button at top-right of main
+                                        window</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">2</span>
+                                    <span class="lang-cn">应用会隐藏主窗口并在菜单栏显示图标</span>
+                                    <span class="lang-en">App hides main window and shows icon in menu bar</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">3</span>
+                                    <span class="lang-cn">点击菜单栏图标可以显示窗口或退出应用</span>
+                                    <span class="lang-en">Click menu bar icon to show window or quit app</span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">后台运行时 Lightroom 插件仍可正常使用，无需保持主窗口打开。</span>
+                                <span class="lang-en">Lightroom plugin works in background mode without main window
+                                    open.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 11: Species Folders -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">11 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">如何按鸟种自动分类照片？</span>
+                            <span class="lang-en">How to auto-organize photos by species?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">启用鸟种识别后，照片可按识别的鸟种自动分类到子目录：</span>
+                                <span class="lang-en">With bird ID enabled, photos can be auto-organized into species
+                                    subdirectories:</span>
+                            </p>
+                            <div class="faq-image">
+                                <img src="img/en/Finish-Picky.jpg" alt="Species Folders">
+                            </div>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn">在主界面勾选「启用鸟种识别」</span>
+                                    <span class="lang-en">Check "Enable Bird ID" in main interface</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">2</span>
+                                    <span class="lang-cn">勾选「按鸟种分目录」选项</span>
+                                    <span class="lang-en">Check "Organize by Species" option</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">3</span>
+                                    <span class="lang-cn">处理完成后，照片将按「中文名_英文名」格式创建子目录</span>
+                                    <span class="lang-en">After processing, photos are organized into "Chinese_English"
+                                        named folders</span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">📁</span>
+                                <span class="lang-cn">RAW+JPEG 配对文件会同时移动到对应的鸟种目录中。</span>
+                                <span class="lang-en">RAW+JPEG pairs are moved together to the species folder.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 12: Avonet/eBird Integration -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">12 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">什么是 Avonet / eBird 双重过滤？</span>
+                            <span class="lang-en">What is Avonet / eBird double filtering?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">慧眼选鸟 采用了强大的双重地理空间数据过滤，以解决 AI 模型的幻觉误差：</span>
+                                <span class="lang-en">SuperPicky uses powerful dual geospatial data filtering to solve
+                                    AI model hallucinations:</span>
+                            </p>
+                            <div class="faq-image">
+                                <img src="img/V_4_0_0/设置 eBird 鸟种国家与区域.png" alt="Avonet / eBird Integration"
+                                    class="lang-cn">
+                                <img src="img/en/Choose-Country.jpg" alt="Avonet / eBird Integration" class="lang-en">
+                            </div>
+                            <ul class="faq-feature-list">
+                                <li>
+                                    <span class="lang-cn"><strong>首选 Avonet 离线库</strong> - 内置基于详尽繁殖区的 GPS
+                                        数据，提供零延迟高精度的本地过滤。</span>
+                                    <span class="lang-en"><strong>Primary: Offline Avonet DB</strong> - Built-in
+                                        extensive breeding area GPS data for zero-latency local filtering.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>后备 eBird 在线数据</strong> -
+                                        作为全球最大鸟类观测数据库，提供极罕见鸟种的交叉验证和补充。</span>
+                                    <span class="lang-en"><strong>Backup: Online eBird Data</strong> - The world's
+                                        largest database, used for cross-validation and rare species supplement.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>GPS 自动检测</strong> - 如果照片包含 GPS
+                                        信息，系统全自动过滤当地不可能分布的鸟类。</span>
+                                    <span class="lang-en"><strong>GPS Auto-detect</strong> - Auto-fetches local species
+                                        list if photo has GPS.</span>
+                                </li>
+                            </ul>
+                            <div class="faq-tip">
+                                <span class="tip-icon">🌍</span>
+                                <span class="lang-cn">建议始终开启地区过滤（首选 Avonet），它能将常见鸟种的 Top-1 识别准确率硬生生拔高至 98.7%。</span>
+                                <span class="lang-en">Recommend always enabling region filter (Avonet preferred),
+                                    significantly improving Top-1 accuracy to 98.7%.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 13: Photoshop/Bridge Compatibility -->
+                <div class="faq-item">
+                    <div class="faq-number">13</div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">Photoshop 或 Bridge 可以使用吗？</span>
+                            <span class="lang-en">Can I use Photoshop or Bridge?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">慧眼选鸟 的评分和元数据功能与 Adobe Bridge 和 Photoshop 完全兼容：</span>
+                                <span class="lang-en">SuperPicky's rating and metadata features are fully compatible
+                                    with Adobe Bridge and Photoshop:</span>
+                            </p>
+                            <ul class="faq-feature-list">
+                                <li>
+                                    <span class="lang-cn"><strong>Bridge 完全支持</strong> - 评分、标签、旗标在 Bridge
+                                        中都可以正常显示和排序</span>
+                                    <span class="lang-en"><strong>Full Bridge Support</strong> - Ratings, labels, flags
+                                        display and sort correctly in Bridge</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>Photoshop 可读取</strong> - 通过「文件」→「文件简介」可查看鸟种识别结果</span>
+                                    <span class="lang-en"><strong>Photoshop Readable</strong> - View bird ID results via
+                                        "File" → "File Info"</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>颜色标签兼容</strong> - 建议使用「Bridge 默认」标签集以获得最佳兼容性</span>
+                                    <span class="lang-en"><strong>Label Compatible</strong> - Use "Bridge Default" label
+                                        set for best compatibility</span>
+                                </li>
+                            </ul>
+                            <div class="faq-tip">
+                                <span class="tip-icon">⚠️</span>
+                                <span class="lang-cn">注意：Lightroom 插件仅适用于 Lightroom Classic，无法在 Bridge 或 Photoshop
+                                    中使用。但您仍可使用主程序处理照片后在 Bridge 中查看结果。</span>
+                                <span class="lang-en">Note: The Lightroom plugin only works with Lightroom Classic.
+                                    However, you can still process photos with the main app and view results in
+                                    Bridge.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 14: First-time Loading -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">14 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">首次运行加载速度的说明</span>
+                            <span class="lang-en">Note on first launch loading speed</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">从 V4.0.6 开始，系统架构经过底层优化，冷启动性能已大幅提升：</span>
+                                <span class="lang-en">Starting from V4.0.6, architecture is heavily optimized,
+                                    drastically improving cold start performance:</span>
+                            </p>
+                            <ul class="faq-feature-list">
+                                <li>
+                                    <span class="lang-cn"><strong>首次启动优化</strong> - 系统只需在首次启动时将多个 OSEA
+                                        模型载入显存，耗时相比旧版本大大缩短。</span>
+                                    <span class="lang-en"><strong>First Launch Optimization</strong> - OSEA models are
+                                        loaded into VRAM only once. Time varies by device.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>后续启动</strong> - 模型一旦缓存，识别速度达到极速。</span>
+                                    <span class="lang-en"><strong>Subsequent Runs</strong> - Once cached, identification
+                                        is blazing fast.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>极速推理</strong> - 通过 Apple Silicon 与 CUDA 硬件加速，推理能力高达
+                                        200+ FPS（基于1080p）。</span>
+                                    <span class="lang-en"><strong>Fast Inference</strong> - Hardware acceleration
+                                        achieves 200+ FPS (1080p scale).</span>
+                                </li>
+                            </ul>
+                            <div class="faq-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">建议：使用系统托盘功能让应用在后台运行，随时快速响应。</span>
+                                <span class="lang-en">Tip: Use system tray to keep the app running in the
+                                    background.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 15: AI Identification Accuracy -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">15 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">AI 鸟种识别不准确怎么办？</span>
+                            <span class="lang-en">What if AI bird identification is inaccurate?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">以下方法可以显著提高识别准确率：</span>
+                                <span class="lang-en">These methods can significantly improve identification
+                                    accuracy:</span>
+                            </p>
+                            <div class="faq-steps">
+                                <div class="step">
+                                    <span class="step-num">1</span>
+                                    <span class="lang-cn"><strong>开启 eBird 过滤</strong> -
+                                        根据拍摄地点过滤掉当地不可能出现的鸟种，大幅提高准确率</span>
+                                    <span class="lang-en"><strong>Enable eBird Filter</strong> - Filter out species
+                                        impossible at your location, greatly improving accuracy</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">2</span>
+                                    <span class="lang-cn"><strong>选择正确的地区</strong> - 确保照片有 GPS 信息，或手动选择正确的国家/省份</span>
+                                    <span class="lang-en"><strong>Select Correct Region</strong> - Ensure photos have
+                                        GPS data, or manually select correct country/state</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">3</span>
+                                    <span class="lang-cn"><strong>使用清晰照片</strong> - 模糊、遮挡或距离过远的照片会降低识别准确率</span>
+                                    <span class="lang-en"><strong>Use Clear Photos</strong> - Blurry, obscured, or
+                                        distant photos reduce accuracy</span>
+                                </div>
+                                <div class="step">
+                                    <span class="step-num">4</span>
+                                    <span class="lang-cn"><strong>查看置信度</strong> - 高置信度的结果更可靠，低置信度建议人工复核</span>
+                                    <span class="lang-en"><strong>Check Confidence</strong> - High confidence results
+                                        are more reliable, low confidence needs manual review</span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">🎯</span>
+                                <span class="lang-cn">AI 模型支持全球 11,000+ 鸟种，但相似物种（如不同地区的亚种）可能需要专业知识辅助判断。</span>
+                                <span class="lang-en">AI model supports 11,000+ species worldwide, but similar species
+                                    (like regional subspecies) may need expert knowledge.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 16: Metadata Fields -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">16 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">鸟种识别结果写入了哪些元数据？</span>
+                            <span class="lang-en">What metadata fields are written for bird ID?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">鸟种识别结果会写入以下 IPTC/XMP 元数据字段：</span>
+                                <span class="lang-en">Bird identification results are written to these IPTC/XMP metadata
+                                    fields:</span>
+                            </p>
+                            <div class="faq-field-map">
+                                <div class="field-row">
+                                    <span class="field-name">Keywords</span>
+                                    <span class="field-arrow">→</span>
+                                    <span class="field-meaning">
+                                        <span class="lang-cn">中文名、英文名、学名 (如：红嘴蓝鹊, Red-billed Blue Magpie, Urocissa
+                                            erythroryncha)</span>
+                                        <span class="lang-en">Chinese name, English name, Scientific name</span>
+                                    </span>
+                                </div>
+                                <div class="field-row">
+                                    <span class="field-name">Title</span>
+                                    <span class="field-arrow">→</span>
+                                    <span class="field-meaning">
+                                        <span class="lang-cn">中文名 | 英文名 | 学名</span>
+                                        <span class="lang-en">Chinese Name | English Name | Scientific Name</span>
+                                    </span>
+                                </div>
+                                <div class="field-row">
+                                    <span class="field-name">Caption</span>
+                                    <span class="field-arrow">→</span>
+                                    <span class="field-meaning">
+                                        <span class="lang-cn">鸟种简介描述（来自数据库）</span>
+                                        <span class="lang-en">Species description (from database)</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="faq-tip">
+                                <span class="tip-icon">💡</span>
+                                <span class="lang-cn">这些元数据在 Lightroom、Bridge、Photoshop 中都可以搜索和筛选，方便后期管理鸟类照片库。</span>
+                                <span class="lang-en">These metadata fields are searchable in Lightroom, Bridge, and
+                                    Photoshop for easy bird photo library management.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 17: Windows Support -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">17 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">Windows 版本支持情况说明</span>
+                            <span class="lang-en">Windows version support details</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">是的！自 V4.0.6 起，Windows 版本已退出 Beta 测试，提供全面而稳定的支持，针对不同硬件双轨并行：</span>
+                                <span class="lang-en">Yes! Since V4.0.6, the Windows version is officially supported for
+                                    broad hardware integration:</span>
+                            </p>
+                            <ul class="faq-feature-list">
+                                <li>
+                                    <span class="lang-cn"><strong>CUDA GPU 加速版</strong> - 专为包含 Nivida 显卡的系统设计，尽享满血版 AI
+                                        识别性能。</span>
+                                    <span class="lang-en"><strong>CUDA GPU Version</strong> - For systems with Nvidia
+                                        GPUs to enjoy full AI performance.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>CPU 基础版</strong> - 适用于不具备独显的 Windows
+                                        或者旧系统，完全兼容所有核心选片逻辑。</span>
+                                    <span class="lang-en"><strong>CPU Only Version</strong> - For laptops or older
+                                        systems without dedicated GPUs.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>完整生态支持</strong> - CLI 命令行工具与核心功能在 Windows 端等价于 macOS
+                                        旗舰性能。</span>
+                                    <span class="lang-en"><strong>Total Ecosystem Support</strong> - CLI tools and
+                                        features perform equally well.</span>
+                                </li>
+                            </ul>
+                            <div class="faq-tip">
+                                <span class="tip-icon">📢</span>
+                                <span class="lang-cn">您可前往官网下载区选择对应版本的安装包 ZIP。</span>
+                                <span class="lang-en">You can choose the corresponding package from the download
+                                    section.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 18: Double Criteria Focus -->
+                <div class="faq-item faq-item-new">
+                    <div class="faq-number">18 <span class="beta-badge">V4</span></div>
+                    <div class="faq-content">
+                        <h3>
+                            <span class="lang-cn">（双达标，精焦）与（双达标，合焦）是什么含义？</span>
+                            <span class="lang-en">What does "Dual Qualify, Critical Focus" and "Dual Qualify, Good
+                                Focus" mean?</span>
+                        </h3>
+                        <div class="faq-answer">
+                            <p>
+                                <span class="lang-cn">这是 慧眼选鸟 评估照片的最核心机制。双达标指的是在一组连拍或者相似姿态组别中，该照片的<strong>锐度
+                                        (Sharpness)</strong> 和 <strong>美学评分 (Aesthetics)</strong> 参数同时达到了极高标准（通常是前
+                                    25%）。在此基础上：</span>
+                                <span class="lang-en">This is the core evaluation mechanism. Dual Qualify means the
+                                    photo simultaneously reached the Top 25% in its burst sequence for both
+                                    <strong>Sharpness</strong> and <strong>Aesthetics</strong>. Furthermore:</span>
+                            </p>
+                            <ul class="faq-feature-list">
+                                <li>
+                                    <span class="lang-cn"><strong>（双达标，精焦）</strong> -
+                                        照片除了同时满足高锐度与高美学构图，并且智能对焦点识别算法确认对焦点<strong>完美落实在了鸟的眼睛或头部</strong>。这是最完美的顶级成片。</span>
+                                    <span class="lang-en"><strong>(Dual Qualify, Critical Focus)</strong> - Top quality,
+                                        and the focus point accurately lands on the bird's eye or head.</span>
+                                </li>
+                                <li>
+                                    <span class="lang-cn"><strong>（双达标，合焦）</strong> -
+                                        照片满足了高锐度与高美学构图的双重标准，但是对焦点位于鸟体躯干、翅膀边缘。整体非常清晰锐利，但焦点没有绝对落在眼部。</span>
+                                    <span class="lang-en"><strong>(Dual Qualify, Good Focus)</strong> - Top quality, but
+                                        the focal point landed strictly on the body/wings instead of the head. Very
+                                        sharp overall.</span>
+                                </li>
+                            </ul>
+                            <div class="faq-tip">
+                                <span class="tip-icon">✨</span>
+                                <span class="lang-cn">在 Lightroom 中，（双达标，精焦）会被自动打上红色颜色标签以及精选旗标（Pick Flag）！</span>
+                                <span class="lang-en">In Lightroom, "Critical Focus" photos will be tagged Red with a
+                                    Pick Flag!</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+
+            <!-- Back to Home -->
+            <div class="faq-back">
+                <a href="index.html" class="btn btn-ghost">
+                    <span class="lang-cn">← 返回首页</span>
+                    <span class="lang-en">← Back to Home</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-inner">
+                <div class="footer-brand">
+                    <img src="img/icon.png" alt="SuperPicky">
+                    <div class="footer-brand-text">
+                        <span>SuperPicky</span>
+                        <span class="footer-author">by James Yu (詹姆斯·于震)</span>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <a href="https://github.com/jamesphotography/SuperPicky">GitHub</a>
+                    <a href="https://www.youtube.com/@JamesZhenYu">YouTube</a>
+                    <a href="mailto:james@jamesphotography.com.au">
+                        <span class="lang-cn">联系</span>
+                        <span class="lang-en">Contact</span>
+                    </a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p class="credits">
+                    <span class="lang-cn">模型致谢：YOLO11 (Ultralytics) · TOPIQ (Chaofeng Chen et al.)</span>
+                    <span class="lang-en">Credits: YOLO11 (Ultralytics) · TOPIQ (Chaofeng Chen et al.)</span>
+                </p>
+                <p class="copyright">
+                    © 2024-2026 James Yu · <a href="https://github.com/jamesphotography/SuperPicky/blob/master/LICENSE"
+                        target="_blank" style="color: inherit; text-decoration: underline;">AGPL-3.0 License</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Language Toggle Script -->
+    <script>
+        function setLang(lang) {
+            document.documentElement.setAttribute('data-lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            localStorage.setItem('lang', lang);
+        }
+
+        // Load saved language
+        const savedLang = localStorage.getItem('lang') || 'cn';
+        document.documentElement.setAttribute('data-lang', savedLang);
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                const isCN = btn.textContent.includes('中');
+                if ((savedLang === 'cn' && isCN) || (savedLang === 'en' && !isCN)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

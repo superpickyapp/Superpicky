@@ -1,0 +1,21 @@
+# Shared dependencies for SuperPicky (CPU and CUDA builds)
+
+ultralytics>=8.0.0
+opencv-python>=4.0.0
+rawpy>=0.18.0
+imageio>=2.0.0
+numpy>=1.20.0
+Pillow>=9.0.0
+pillow-heif>=0.10.0
+
+PySide6>=6.6.0
+
+timm>=0.9.0
+cryptography>=41.0.0
+
+flask>=3.1.2
+flask_cors>=6.0.2
+
+imagehash
+
+tzdata

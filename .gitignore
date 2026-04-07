@@ -1,0 +1,120 @@
+# Git worktrees
+.worktrees/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+build_dist*/*
+dist*/*
+!dist/*.dmg
+build/
+
+# IDE
+.idea/copilot.*
+.vscode/
+*.swp
+*.swo
+
+# 测试和临时文件
+test_*.py
+analyze_*.py
+add_*.py
+write_*.py
+temp_file_manager.py
+*.csv
+.DS_Store
+.env
+
+# 开发和调试文档
+BUILD_README.md
+IQA_*.md
+SHARPNESS_*.md
+V3.1_*.md
+V3.1.2_*.md
+ADVANCED_*.md
+ISSUE_*.md
+PREPROCESSING_*.md
+TIMING_*.md
+ABOUT_DRAFT.md
+PREVENT_*.md
+CAFFEINATE_*.md
+TEST_*.md
+TESTING_*.md
+
+# 临时目录
+temp/
+.superpicky_temp/
+ebird_cache/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 模型文件（临时模型不上传，基础模型需要上传）
+temp_models/
+
+# 构建和发布文件
+*.log
+test_*.sh
+quick_test.sh
+DEBUG_VERSION_README.md
+distribution.xml
+welcome.html
+conclusion.html
+pkg_components.plist
+pkg_scripts/
+entitlements.plist
+exif_args.txt
+
+# 开发/实验/测试目录（本地调试用，不上传）
+experiments/
+scripts_dev/
+tests/
+
+# 旧的打包脚本（保留本地备份，不同步）
+package_notarize.sh
+package_unsigned.sh
+
+
+# AI 工具配置（不上传）
+.agent/
+.claude/
+CLAUDE.md
+!CLAUDE.md
+
+
+# IDE 配置
+.idea/
+
+# 用户配置文件
+advanced_config.json
+
+*.pkg
+
+# Media files
+*.mov
+*.wav
+*.mp4
+*.mp3
+
+# Project specific
+promo_video/
+pkg_root/
+
+# Models and Data downloaded from Hugging Face
+models/*.pth
+models/*.pt
+models/*.onnx
+birdid/data/avonet.db
+
+# 针对各平台的临时宣发与推广素材（不上云）
+docs/wechat/promo/
+docs/Reddit/
+docs/Promotion/
+
+# 构建输出目录output
+output/

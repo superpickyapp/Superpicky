@@ -1,0 +1,12 @@
+# SuperPicky default dependency set (CPU build).
+# For NVIDIA CUDA build, use requirements_cuda.txt instead.
+
+-r requirements_base.txt
+
+# PyTorch CPU wheels
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.7.1+cpu
+torchvision==0.22.1+cpu
+torchaudio==2.7.1+cpu
+pyinstaller
+lap
