@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-lang="cn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperPicky.APP - 慧眼选鸟 | AI Bird Photo Culling Tool</title>
+    <meta name="description" content="AI智能鸟类摄影选片工具 - 自动识别、评分、分类。AI-powered bird photo culling tool.">
+    <link rel="stylesheet" href="css/style.css?v=20260325">
+    <link rel="icon" href="img/icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Subtle grain overlay -->
+    <div class="grain"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-inner">
+            <a href="#" class="logo">
+                <img src="img/icon.png" alt="SuperPicky">
+                <span>SuperPicky.APP</span>
+            </a>
+            <div class="lang-switch">
+                <button class="lang-btn active" onclick="setLang('cn')">中</button>
+                <button class="lang-btn" onclick="setLang('en')">EN</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <!-- Promo Video -->
+            <div class="hero-video">
+                <video id="promo-video" autoplay muted loop playsinline>
+                    <source src="img/SuperPickyHorizontal.mp4" type="video/mp4">
+                </video>
+            </div>
+
+            <div class="hero-badge">
+                <span class="lang-cn">AI 鸟类摄影选片</span>
+                <span class="lang-en">AI Bird Photo Culling Tool</span>
+            </div>
+            <h1>
+                <span class="lang-cn">慧眼选鸟</span>
+                <span class="lang-en">SuperPicky</span>
+            </h1>
+            <p class="tagline">
+                <span class="lang-cn">拍片一时爽，选片照样爽</span>
+                <span class="lang-en">Shoot freely, pick smartly</span>
+            </p>
+
+            <div class="hero-cta">
+                <a href="#download-beta" class="btn btn-primary btn-beta">
+                    <span class="lang-cn">🆕 下载 V4.2.1-RC3</span>
+                    <span class="lang-en">🆕 Download V4.2.1-RC3</span>
+                    <span class="btn-version">Latest Beta</span>
+                </a>
+                <a href="#download" class="btn btn-secondary">
+                    <span class="lang-cn">⬇️ V4.1.0 LTS 稳定版</span>
+                    <span class="lang-en">⬇️ V4.1.0 LTS Stable</span>
+                    <span class="btn-version">Recommended</span>
+                </a>
+                <a href="#features" class="btn btn-ghost">
+                    <span class="lang-cn">了解更多</span>
+                    <span class="lang-en">Learn More</span>
+                </a>
+            </div>
+
+            <!-- Software Interface Preview -->
+            <div class="hero-preview">
+                <div class="hero-preview-frame">
+                    <img src="img/V410/Screen/birdid-main.png" alt="SuperPicky V4.1.0 Interface">
+                    <div class="hero-preview-glow"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Getting Started Banner -->
+    <section class="faq-help-section" id="help">
+        <div class="container">
+            <div class="faq-help-card">
+                <div class="faq-help-icon">📖</div>
+                <div class="faq-help-content">
+                    <h3>
+                        <span class="lang-cn">新手入门</span>
+                        <span class="lang-en">Getting Started</span>
+                    </h3>
+                    <p>
+                        <span class="lang-cn">第一次使用？查看详细的图文教程，从入门到精通</span>
+                        <span class="lang-en">First time user? Check our detailed step-by-step tutorial</span>
+                    </p>
+                </div>
+                <div class="faq-help-buttons">
+                    <a href="tutorial-4.2.1.html" class="btn btn-primary">
+                        <span class="lang-cn">使用教程</span>
+                        <span class="lang-en">Tutorial</span>
+                    </a>
+                    <a href="faq.html" class="btn btn-ghost">
+                        <span class="lang-cn">常见问题</span>
+                        <span class="lang-en">FAQ</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Showcase Section -->
+    <section class="showcase">
+        <div class="container">
+            <div class="showcase-tabs">
+                <button class="showcase-tab active" onclick="switchShowcase(0)">
+                    <span class="lang-cn">📋 结果浏览器</span>
+                    <span class="lang-en">📋 Result Browser</span>
+                </button>
+                <button class="showcase-tab" onclick="switchShowcase(1)">
+                    <span class="lang-cn">🔍 全屏查看器</span>
+                    <span class="lang-en">🔍 Fullscreen Viewer</span>
+                </button>
+            </div>
+            <div class="showcase-panels">
+                <div class="showcase-panel active">
+                    <div class="showcase-frame">
+                        <img src="img/V410/Screen/result-browser.jpeg" alt="Result Browser">
+                        <div class="showcase-glow"></div>
+                    </div>
+                    <p class="showcase-caption">
+                        <span class="lang-cn">选鸟结果浏览器 — 三栏布局：筛选 · 缩略图网格 · EXIF 详情</span>
+                        <span class="lang-en">Result Browser — Filter · Thumbnail Grid · EXIF Detail</span>
+                    </p>
+                </div>
+                <div class="showcase-panel">
+                    <div class="showcase-frame">
+                        <img src="img/V410/Screen/fullscreen-viewer.jpeg" alt="Fullscreen Viewer">
+                        <div class="showcase-glow"></div>
+                    </div>
+                    <p class="showcase-caption">
+                        <span class="lang-cn">全屏查看器 — AF 对焦框 · 键盘导航 · 100% 放大</span>
+                        <span class="lang-en">Fullscreen Viewer — AF Box · Keyboard Nav · 100% Zoom</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">
+                    <span class="lang-cn">核心功能</span>
+                    <span class="lang-en">Features</span>
+                </span>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-number">01</div>
+                    <h3>
+                        <span class="lang-cn">智能评分</span>
+                        <span class="lang-en">Smart Rating</span>
+                    </h3>
+                    <p>
+                        <span class="lang-cn">头部锐度 + TOPIQ 美学 → 1-3 星 + 精选旗标</span>
+                        <span class="lang-en">Sharpness + TOPIQ Aesthetics → 1-3 Stars + Pick</span>
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-number">02</div>
+                    <h3>
+                        <span class="lang-cn">对焦判定</span>
+                        <span class="lang-en">Focus Detection</span>
+                    </h3>
+                    <p>
+                        <span class="lang-cn">读取 RAW 对焦点，判定精焦/合焦/失焦/脱焦状态</span>
+                        <span class="lang-en">RAW focus point analysis: Critical / Good / Soft / Out-of-Focus</span>
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-number">03</div>
+                    <h3>
+                        <span class="lang-cn">连拍分组</span>
+                        <span class="lang-en">Burst Grouping</span>
+                    </h3>
+                    <p>
+                        <span class="lang-cn">自动识别连拍序列，分组整理到 burst 子目录</span>
+                        <span class="lang-en">Auto-detect burst sequences, organize into subdirectories</span>
+                    </p>
+                </div>
+
+                <!-- V4.0.0 NEW features -->
+                <div class="feature-card featured-feature">
+                    <div class="feature-number">04 <span class="beta-badge">🆕 V4</span></div>
+                    <h3>
+                        <span class="lang-cn">AI 鸟种识别</span>
+                        <span class="lang-en">AI Bird ID</span>
+                    </h3>
+                    <p>
+                        <span class="lang-cn">自动识别 11,000+ 鸟种，写入 EXIF 和 IPTC 元数据</span>
+                        <span class="lang-en">Recognize 11,000+ species, write to EXIF/IPTC</span>
+                    </p>
+                </div>
+                <div class="feature-card featured-feature">
+                    <div class="feature-number">05 <span class="beta-badge">🆕 V4</span></div>
+                    <h3>
+                        <span class="lang-cn">飞鸟与鸟眼识别</span>
+                        <span class="lang-en">BIF & Bird Eye Detection</span>
+                    </h3>
+                    <p>
+                        <span class="lang-cn">SuperFlier 飞鸟姿态 + SuperEyes 鸟眼定位识别</span>
+                        <span class="lang-en">SuperFlier BIF detection + SuperEyes bird eye localization</span>
+                    </p>
+                </div>
+                <div class="feature-card featured-feature">
+                    <div class="feature-number">06 <span class="beta-badge">🆕 V4.1</span></div>
+                    <h3>
+                        <span class="lang-cn">选鸟结果浏览器</span>
+                        <span class="lang-en">Result Browser</span>
+                    </h3>
+                    <p>
+                        <span class="lang-cn">缩略图网格 · 智能筛选 · 全屏查看 · 对比评分 · 一站式浏览选片结果</span>
+                        <span class="lang-en">Thumbnail grid · Smart filters · Fullscreen viewer · Side-by-side
+                            comparison</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Rating System Section -->
+    <section class="rating-section" id="rating">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">
+                    <span class="lang-cn">评分规则</span>
+                    <span class="lang-en">Rating System</span>
+                </span>
+            </div>
+            <div class="rating-grid">
+                <div class="rating-row">
+                    <div class="rating-stars">★★★</div>
+                    <div class="rating-info">
+                        <span class="rating-name">
+                            <span class="lang-cn">优选</span>
+                            <span class="lang-en">Excellent</span>
+                        </span>
+                        <span class="rating-desc">
+                            <span class="lang-cn">锐度 + 美学双达标</span>
+                            <span class="lang-en">Both sharpness & aesthetics pass</span>
+                        </span>
+                    </div>
+                    <div class="rating-badges">
+                        <span class="badge badge-pick">Pick</span>
+                        <span class="badge badge-fly">
+                            <span class="lang-cn">飞鸟</span>
+                            <span class="lang-en">BIF</span>
+                        </span>
+                        <span class="badge badge-focus">
+                            <span class="lang-cn">精焦</span>
+                            <span class="lang-en">Focus</span>
+                        </span>
+                        <span class="badge badge-burst">
+                            <span class="lang-cn">Burst 连拍</span>
+                            <span class="lang-en">Burst</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="rating-row">
+                    <div class="rating-stars dim">★★</div>
+                    <div class="rating-info">
+                        <span class="rating-name">
+                            <span class="lang-cn">良好</span>
+                            <span class="lang-en">Good</span>
+                        </span>
+                        <span class="rating-desc">
+                            <span class="lang-cn">锐度或美学达标其一</span>
+                            <span class="lang-en">Either sharpness or aesthetics pass</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="rating-row">
+                    <div class="rating-stars dim">★</div>
+                    <div class="rating-info">
+                        <span class="rating-name">
+                            <span class="lang-cn">普通</span>
+                            <span class="lang-en">Average</span>
+                        </span>
+                        <span class="rating-desc">
+                            <span class="lang-cn">有鸟但未达标</span>
+                            <span class="lang-en">Bird detected but below threshold</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="rating-row">
+                    <div class="rating-stars muted">0</div>
+                    <div class="rating-info">
+                        <span class="rating-name">
+                            <span class="lang-cn">放弃</span>
+                            <span class="lang-en">Reject</span>
+                        </span>
+                        <span class="rating-desc">
+                            <span class="lang-cn">无鸟 / 质量差</span>
+                            <span class="lang-en">No bird / Poor quality</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Beta Download Section -->
+    <section class="download-section" id="download-beta">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">
+                    <span class="lang-cn">🆕 下载 V4.2.1-RC3</span>
+                    <span class="lang-en">🆕 Download V4.2.1-RC3</span>
+                </span>
+            </div>
+            <div class="download-cards">
+                <!-- Mac ARM64 V4.2.1-RC3 -->
+                <div class="download-card featured">
+                    <div class="download-info">
+                        <div class="download-icon">
+                            <img src="img/icon.png" alt="SuperPicky">
+                        </div>
+                        <div class="download-meta">
+                            <h3>SuperPicky <span class="platform-badge">macOS</span> <span class="beta-badge">🆕 V4.2.1-RC3</span></h3>
+                            <p class="download-version">v4.2.1-RC3 · Apple Silicon (M1/M2/M3/M4)</p>
+                        </div>
+                    </div>
+                    <div class="download-links">
+                        <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.2.1-RC3/SuperPicky_v4.2.1-beta_arm64_be2f41a3.dmg"
+                            class="btn btn-secondary" target="_blank">
+                            GitHub
+                        </a>
+                        <a href="https://gitcode.com/Jamesphotography/SuperPicky/releases/download/v4.2.1-RC3/SuperPicky_v4.2.1-beta_arm64_be2f41a3.dmg"
+                            class="btn btn-primary" target="_blank">
+                            <span class="lang-cn">大陆镜像</span><span class="lang-en">GitCode</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Mac Intel V4.2.1-RC3 -->
+                <div class="download-card">
+                    <div class="download-info">
+                        <div class="download-icon">
+                            <img src="img/icon.png" alt="SuperPicky">
+                        </div>
+                        <div class="download-meta">
+                            <h3>SuperPicky <span class="platform-badge">macOS</span> <span class="beta-badge">🆕 V4.2.1-RC3</span></h3>
+                            <p class="download-version">v4.2.1-RC3 · Intel x64 (2020年前 Mac)</p>
+                        </div>
+                    </div>
+                    <div class="download-links">
+                        <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.2.1-RC3/SuperPicky_v4.2.1-beta_Intel_be2f41a3.dmg"
+                            class="btn btn-secondary btn-tooltip"
+                            data-tooltip-cn="🖥 需要 macOS 12 Monterey 或更高版本"
+                            data-tooltip-en="🖥 Requires macOS 12 Monterey or later"
+                            target="_blank">
+                            GitHub
+                        </a>
+                        <a href="https://gitcode.com/Jamesphotography/SuperPicky/releases/download/v4.2.1-RC3/SuperPicky_v4.2.1-beta_Intel_be2f41a3.dmg"
+                            class="btn btn-primary btn-tooltip"
+                            data-tooltip-cn="🖥 需要 macOS 12 Monterey 或更高版本"
+                            data-tooltip-en="🖥 Requires macOS 12 Monterey or later"
+                            target="_blank">
+                            <span class="lang-cn">大陆镜像</span><span class="lang-en">GitCode</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Windows CPU V4.2.1-RC3 -->
+                <div class="download-card windows">
+                    <div class="download-info">
+                        <div class="download-icon">
+                            <img src="img/icon.png" alt="SuperPicky">
+                        </div>
+                        <div class="download-meta">
+                            <h3>SuperPicky <span class="platform-badge">Windows</span> <span class="beta-badge">🆕 V4.2.1-RC3</span></h3>
+                            <p class="download-version">v4.2.1-RC3 · CPU Only (No CUDA) · x64</p>
+                        </div>
+                    </div>
+                    <div class="download-links">
+                        <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.2.1-RC3/SuperPicky_Win64_4.2.1-beta_95603fd_cpu.zip"
+                            class="btn btn-secondary" target="_blank">
+                            GitHub
+                        </a>
+                        <a href="https://gitcode.com/Jamesphotography/SuperPicky/releases/download/v4.2.1-RC3/SuperPicky_Win64_4.2.1-beta_95603fd_cpu.zip"
+                            class="btn btn-primary" target="_blank">
+                            <span class="lang-cn">大陆镜像</span><span class="lang-en">GitCode</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Windows CUDA V4.2.1-RC3 -->
+                <div class="download-card windows">
+                    <div class="download-info">
+                        <div class="download-icon">
+                            <img src="img/icon.png" alt="SuperPicky">
+                        </div>
+                        <div class="download-meta">
+                            <h3>SuperPicky <span class="platform-badge">Windows</span> <span class="beta-badge">🆕 V4.2.1-RC3</span></h3>
+                            <p class="download-version">v4.2.1-RC3 · NVIDIA CUDA GPU Patch · x64</p>
+                        </div>
+                    </div>
+                    <div class="download-links">
+                        <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.2.1-RC3/SuperPicky_Win64_4.2.1-beta_95603fd_cuda_patch.zip"
+                            class="btn btn-secondary btn-tooltip"
+                            data-tooltip-cn="⚠️ 须先安装 CPU 版本" data-tooltip-en="⚠️ Install CPU version first"
+                            target="_blank">
+                            GitHub
+                        </a>
+                        <a href="https://gitcode.com/Jamesphotography/SuperPicky/releases/download/v4.2.1-RC3/SuperPicky_Win64_4.2.1-beta_95603fd_cuda_patch.zip"
+                            class="btn btn-primary btn-tooltip"
+                            data-tooltip-cn="⚠️ 须先安装 CPU 版本" data-tooltip-en="⚠️ Install CPU version first"
+                            target="_blank">
+                            <span class="lang-cn">大陆镜像</span><span class="lang-en">GitCode</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section class="download-section" id="download">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">
+                    <span class="lang-cn">下载 V4.1.0 LTS 稳定版</span>
+                    <span class="lang-en">Download V4.1.0 LTS Stable</span>
+                </span>
+            </div>
+
+            <div class="download-cards">
+                <!-- Mac ARM64 V4.1.0 -->
+                <div class="download-card featured">
+                    <div class="download-info">
+                        <div class="download-icon">
+                            <img src="img/icon.png" alt="SuperPicky">
+                        </div>
+                        <div class="download-meta">
+                            <h3>SuperPicky <span class="platform-badge">macOS</span> <span class="beta-badge">🆕
+                                    V4.1.0</span></h3>
+                            <p class="download-version">v4.1.0 LTS · Apple Silicon (M1/M2/M3/M4)</p>
+                        </div>
+                    </div>
+                    <div class="download-links">
+                        <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.1.0/SuperPicky_v4.1.0_arm64_c869d64.dmg"
+                            class="btn btn-primary" target="_blank">
+                            GitHub
+                        </a>
+                        <a href="https://drive.google.com/file/d/1odYNFvtYZa8pAO_bYZZCh5FZ6v0ggxFQ"
+                            class="btn btn-secondary" target="_blank">
+                            Google Drive
+                        </a>
+                        <a href="https://pan.baidu.com/s/1xzex0UrSDiZeWyLuYRSqNg?pwd=t6c4" class="btn btn-secondary"
+                            target="_blank">
+                            <span class="lang-cn">百度网盘(t6c4)</span>
+                            <span class="lang-en">Baidu(t6c4)</span>
+                        </a>
+                        <a href="https://pan.quark.cn/s/625a2dac438a" class="btn btn-secondary" target="_blank">
+                            <span class="lang-cn">夸克网盘</span>
+                            <span class="lang-en">Quark</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Mac Intel V4.1.0 -->
+                <div class="download-card">
+                    <div class="download-info">
+                        <div class="download-icon">
+                            <img src="img/icon.png" alt="SuperPicky">
+                        </div>
+                        <div class="download-meta">
+                            <h3>SuperPicky <span class="platform-badge">macOS</span> <span class="beta-badge">🆕
+                                    V4.1.0</span></h3>
+                            <p class="download-version">v4.1.0 LTS · Intel x64 (2020年前 Mac)</p>
+                        </div>
+                    </div>
+                    <div class="download-links">
+                        <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.1.0/SuperPicky_v4.1.0_Intel_c869d64.dmg"
+                            class="btn btn-primary btn-tooltip"
+                            data-tooltip-cn="🖥 需要 macOS 12 Monterey 或更高版本"
+                            data-tooltip-en="🖥 Requires macOS 12 Monterey or later"
+                            target="_blank">
+                            GitHub
+                        </a>
+                        <a href="https://drive.google.com/file/d/1dPdCoObVLuxy9ks_sYjbfSR4bI3A-IPD"
+                            class="btn btn-secondary btn-tooltip"
+                            data-tooltip-cn="🖥 需要 macOS 12 Monterey 或更高版本"
+                            data-tooltip-en="🖥 Requires macOS 12 Monterey or later"
+                            target="_blank">
+                            Google Drive
+                        </a>
+                        <a href="https://pan.baidu.com/s/1lNz2mBUEee8qqrd95rPJsA?pwd=3821"
+                            class="btn btn-secondary btn-tooltip"
+                            data-tooltip-cn="🖥 需要 macOS 12 Monterey 或更高版本"
+                            data-tooltip-en="🖥 Requires macOS 12 Monterey or later"
+                            target="_blank">
+                            <span class="lang-cn">百度网盘(3821)</span>
+                            <span class="lang-en">Baidu(3821)</span>
+                        </a>
+                        <a href="https://pan.quark.cn/s/1b5d87b74059"
+                            class="btn btn-secondary btn-tooltip"
+                            data-tooltip-cn="🖥 需要 macOS 12 Monterey 或更高版本"
+                            data-tooltip-en="🖥 Requires macOS 12 Monterey or later"
+                            target="_blank">
+                            <span class="lang-cn">夸克网盘</span>
+                            <span class="lang-en">Quark</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Windows CPU V4.1.0 -->
+                <div class="download-card windows">
+                    <div class="download-info">
+                        <div class="download-icon">
+                            <img src="img/icon.png" alt="SuperPicky">
+                        </div>
+                        <div class="download-meta">
+                            <h3>SuperPicky <span class="platform-badge">Windows</span> <span class="beta-badge">🆕
+                                    V4.1.0</span></h3>
+                            <p class="download-version">v4.1.0 LTS · CPU Only (No CUDA) · x64</p>
+                        </div>
+                    </div>
+                    <div class="download-links">
+                        <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.1.0/SuperPicky_Setup_Win64_4.1.0_242f4be.exe"
+                            class="btn btn-primary" target="_blank">
+                            GitHub
+                        </a>
+                        <a href="https://drive.google.com/file/d/1nTcgQdUqotu04kVkWUZqENnQtn573uzx"
+                            class="btn btn-secondary" target="_blank">
+                            Google Drive
+                        </a>
+                        <a href="https://pan.baidu.com/s/1dle-dGbKx5_On5cfdaaLXQ?pwd=872v" class="btn btn-secondary"
+                            target="_blank">
+                            <span class="lang-cn">百度网盘(872v)</span>
+                            <span class="lang-en">Baidu(872v)</span>
+                        </a>
+                        <a href="https://pan.quark.cn/s/1b7016c16f79" class="btn btn-secondary" target="_blank">
+                            <span class="lang-cn">夸克网盘</span>
+                            <span class="lang-en">Quark</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Windows CUDA V4.1.0 -->
+                <div class="download-card windows">
+                    <div class="download-info">
+                        <div class="download-icon">
+                            <img src="img/icon.png" alt="SuperPicky">
+                        </div>
+                        <div class="download-meta">
+                            <h3>SuperPicky <span class="platform-badge">Windows</span> <span class="beta-badge">Beta
+                                    V4.1.0</span></h3>
+                            <p class="download-version">v4.1.0 Beta · NVIDIA CUDA GPU · x64</p>
+                        </div>
+                    </div>
+                    <div class="download-links">
+                        <a href="https://pan.baidu.com/s/1XBaGXPim_WzjpNBgG-altg?pwd=c2a6" class="btn btn-primary"
+                            target="_blank">
+                            <span class="lang-cn">百度网盘(c2a6)</span>
+                            <span class="lang-en">Baidu(c2a6)</span>
+                        </a>
+                        <a href="https://drive.google.com/file/d/1IKSxB3KbQdDO7VhnsGnHjOb2EgqZIgSB/view?usp=sharing"
+                            class="btn btn-secondary" target="_blank">
+                            Google Drive
+                        </a>
+                        <a href="https://pan.quark.cn/s/d15276717367" class="btn btn-secondary" target="_blank">
+                            <span class="lang-cn">夸克网盘</span>
+                            <span class="lang-en">Quark</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="archive-link-container">
+                <a href="downloads.html" class="archive-link"
+                    style="display: inline-block; margin-top: 30px; color: rgba(255,255,255,0.5); text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.2);">
+                    Looking for older versions? View Archive &rarr;
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section class="team-section" id="team">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">
+                    <span class="lang-cn">开发团队</span>
+                    <span class="lang-en">Team</span>
+                </span>
+            </div>
+            <div class="team-grid">
+                <a href="https://github.com/jamesphotography" class="team-card" target="_blank">
+                    <div class="team-role">
+                        <span class="lang-cn">开发者</span>
+                        <span class="lang-en">Developer</span>
+                    </div>
+                    <div class="team-name">
+                        <span class="lang-cn">詹姆斯·于震</span>
+                        <span class="lang-en">James Yu</span>
+                    </div>
+                    <div class="team-desc">
+                        <span class="lang-cn">澳籍华裔职业摄影师</span>
+                        <span class="lang-en">Professional Photographer</span>
+                    </div>
+                </a>
+                <a href="https://github.com/triple333sR9" class="team-card" target="_blank">
+                    <div class="team-role">
+                        <span class="lang-cn">模型训练</span>
+                        <span class="lang-en">Model Training</span>
+                    </div>
+                    <div class="team-name">
+                        <span class="lang-cn">于若君</span>
+                        <span class="lang-en">Jordan Yu</span>
+                    </div>
+                    <div class="team-desc">
+                        <span class="lang-cn">SuperEyes · SuperFlier</span>
+                        <span class="lang-en">SuperEyes · SuperFlier</span>
+                    </div>
+                </a>
+                <a href="https://github.com/thp2024" class="team-card" target="_blank">
+                    <div class="team-role">
+                        <span class="lang-cn">Windows 版本</span>
+                        <span class="lang-en">Windows Build</span>
+                    </div>
+                    <div class="team-name">
+                        <span class="lang-cn">小平 · Lyapunov · Oscar King</span>
+                        <span class="lang-en">Xiaoping · Lyapunov · Oscar King</span>
+                    </div>
+                    <div class="team-desc">
+                        <span class="lang-cn">Windows 移植与适配</span>
+                        <span class="lang-en">Windows Build</span>
+                    </div>
+                </a>
+                <a href="https://github.com/yblpoi" class="team-card" target="_blank">
+                    <div class="team-role">
+                        <span class="lang-cn">Windows 版本</span>
+                        <span class="lang-en">Windows Build</span>
+                    </div>
+                    <div class="team-name">
+                        伯劳
+                    </div>
+                    <div class="team-desc">
+                        <span class="lang-cn">Windows 移植与适配</span>
+                        <span class="lang-en">Windows Build</span>
+                    </div>
+                </a>
+                <a href="https://github.com/jcchan23" class="team-card" target="_blank">
+                    <div class="team-role">
+                        <span class="lang-cn">模型移植与瘦身</span>
+                        <span class="lang-en">Model Porting & Optimization</span>
+                    </div>
+                    <div class="team-name">
+                        <span class="lang-cn">Jianwen Chen</span>
+                        <span class="lang-en">Jianwen Chen</span>
+                    </div>
+                    <div class="team-desc">
+                        <span class="lang-cn">模型移植与轻量化优化</span>
+                        <span class="lang-en">Model Porting & Lightweight Optimization</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- More Tools Section -->
+    <section class="tools-section" id="tools">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">
+                    <span class="lang-cn">更多免费工具</span>
+                    <span class="lang-en">More Free Tools</span>
+                </span>
+            </div>
+            <div class="tools-grid">
+                <a href="https://apps.apple.com/au/app/%E6%85%A7%E7%9C%BC%E8%A7%82%E9%B8%9F/id6756405107"
+                    class="tool-item" target="_blank">
+                    <span class="tool-name">
+                        <span class="lang-cn">慧眼观鸟</span>
+                        <span class="lang-en">BirdID</span>
+                    </span>
+                    <span class="tool-desc">
+                        <span class="lang-cn">AI 鸟种识别 (iOS)</span>
+                        <span class="lang-en">AI Species ID (iOS)</span>
+                    </span>
+                </a>
+                <a href="https://superstaroff.jamesphotography.com.au/" class="tool-item" target="_blank">
+                    <span class="tool-name">
+                        <span class="lang-cn">慧眼去星</span>
+                        <span class="lang-en">StarRemover</span>
+                    </span>
+                    <span class="tool-desc">
+                        <span class="lang-cn">AI 银河去星 (Photoshop)</span>
+                        <span class="lang-en">AI Milky Way (Photoshop)</span>
+                    </span>
+                </a>
+                <a href="https://superstartrail.jamesphotography.com.au/" class="tool-item" target="_blank">
+                    <span class="tool-name">
+                        <span class="lang-cn">彗星星轨</span>
+                        <span class="lang-en">StarTrail</span>
+                    </span>
+                    <span class="tool-desc">
+                        <span class="lang-cn">星轨合成 (Mac/Win)</span>
+                        <span class="lang-en">Star Trail (Mac/Win)</span>
+                    </span>
+                </a>
+                <a href="https://tuiportfolio.com/" class="tool-item" target="_blank">
+                    <span class="tool-name">
+                        <span class="lang-cn">图忆</span>
+                        <span class="lang-en">TUI Portfolio</span>
+                    </span>
+                    <span class="tool-desc">
+                        <span class="lang-cn">鸟类作品集 (iOS)</span>
+                        <span class="lang-en">Bird Portfolio (iOS)</span>
+                    </span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-inner">
+                <div class="footer-brand">
+                    <img src="img/icon.png" alt="SuperPicky">
+                    <div class="footer-brand-text">
+                        <span>SuperPicky</span>
+                        <span class="footer-author">by James Yu (詹姆斯·于震)</span>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <a href="tutorial-4.2.1.html">
+                        <span class="lang-cn">使用教程</span>
+                        <span class="lang-en">Tutorial</span>
+                    </a>
+                    <a href="faq.html">
+                        <span class="lang-cn">常见问题</span>
+                        <span class="lang-en">FAQ</span>
+                    </a>
+                    <a href="sponsors.html">
+                        <span class="lang-cn">赞助者</span>
+                        <span class="lang-en">Sponsors</span>
+                    </a>
+                    <a href="cli-reference.md">
+                        <span class="lang-cn">CLI 参考</span>
+                        <span class="lang-en">CLI Reference</span>
+                    </a>
+                    <a href="https://github.com/jamesphotography/SuperPicky">GitHub</a>
+                    <a href="https://www.youtube.com/@JamesZhenYu">YouTube</a>
+                    <a href="mailto:james@jamesphotography.com.au">
+                        <span class="lang-cn">联系</span>
+                        <span class="lang-en">Contact</span>
+                    </a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p class="credits">
+                    <span class="lang-cn">模型致谢：YOLO11 (Ultralytics) · TOPIQ (Chaofeng Chen et al.)</span>
+                    <span class="lang-en">Credits: YOLO11 (Ultralytics) · TOPIQ (Chaofeng Chen et al.)</span>
+                </p>
+                <p class="copyright">
+                    © 2024-2026 James Yu · <a href="LICENSE" target="_blank"
+                        style="color: inherit; text-decoration: underline;">AGPL-3.0 License</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Language Toggle Script -->
+    <script>
+        // Showcase tab switching
+        function switchShowcase(index) {
+            document.querySelectorAll('.showcase-tab').forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.showcase-panel').forEach((panel, i) => {
+                panel.classList.toggle('active', i === index);
+            });
+        }
+    </script>
+    <script>
+        function updatePromoVideo(lang) {
+            const video = document.getElementById('promo-video');
+            if (!video) return;
+            const newSrc = lang === 'en' ? 'img/SuperPickyEN-16-9.mp4' : 'img/SuperPickyHorizontal.mp4';
+
+            // Check the current actual source of the video, either from its src attribute or the source element
+            const currentSrc = video.getAttribute('src') || (video.querySelector('source') && video.querySelector('source').getAttribute('src'));
+
+            if (currentSrc !== newSrc) {
+                video.src = newSrc;
+                video.load();
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => console.log('Autoplay prevented', e));
+                }
+            }
+        }
+
+        function setLang(lang) {
+            document.documentElement.setAttribute('data-lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if (window.event && window.event.target) {
+                window.event.target.classList.add('active');
+            }
+            localStorage.setItem('lang', lang);
+            updatePromoVideo(lang);
+        }
+
+        // Load saved language
+        const savedLang = localStorage.getItem('lang') || 'cn';
+        document.documentElement.setAttribute('data-lang', savedLang);
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                const isCN = btn.textContent.includes('中');
+                if ((savedLang === 'cn' && isCN) || (savedLang === 'en' && !isCN)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            updatePromoVideo(savedLang);
+        });
+
+        // Lightbox functionality
+        (function () {
+            // Create lightbox elements
+            const lightbox = document.createElement('div');
+            lightbox.id = 'lightbox';
+            lightbox.innerHTML = `
+                <div class="lightbox-overlay"></div>
+                <div class="lightbox-content">
+                    <img src="" alt="">
+                    <button class="lightbox-close">&times;</button>
+                </div>
+            `;
+            document.body.appendChild(lightbox);
+
+            // Add styles
+            const style = document.createElement('style');
+            style.textContent = `
+                #lightbox {
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 10000;
+                }
+                #lightbox.active {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .lightbox-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.9);
+                    cursor: pointer;
+                }
+                .lightbox-content {
+                    position: relative;
+                    max-width: 95vw;
+                    max-height: 95vh;
+                    z-index: 1;
+                }
+                .lightbox-content img {
+                    max-width: 95vw;
+                    max-height: 95vh;
+                    object-fit: contain;
+                    border-radius: 8px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+                }
+                .lightbox-close {
+                    position: absolute;
+                    top: -40px;
+                    right: 0;
+                    background: none;
+                    border: none;
+                    color: white;
+                    font-size: 32px;
+                    cursor: pointer;
+                    opacity: 0.7;
+                    transition: opacity 0.2s;
+                }
+                .lightbox-close:hover {
+                    opacity: 1;
+                }
+                /* Make images clickable */
+                .showcase-frame img,
+                .hero-preview-frame img,
+                .step-image img {
+                    cursor: zoom-in;
+                    transition: transform 0.2s;
+                }
+                .showcase-frame img:hover,
+                .hero-preview-frame img:hover,
+                .step-image img:hover {
+                    transform: scale(1.02);
+                }
+            `;
+            document.head.appendChild(style);
+
+            const lightboxImg = lightbox.querySelector('img');
+            const overlay = lightbox.querySelector('.lightbox-overlay');
+            const closeBtn = lightbox.querySelector('.lightbox-close');
+
+            // Open lightbox on image click
+            document.addEventListener('click', (e) => {
+                if (e.target.tagName === 'IMG' &&
+                    (e.target.closest('.showcase-frame') ||
+                        e.target.closest('.hero-preview-frame') ||
+                        e.target.closest('.step-image'))) {
+                    lightboxImg.src = e.target.src;
+                    lightbox.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+
+            // Close lightbox
+            function closeLightbox() {
+                lightbox.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            overlay.addEventListener('click', closeLightbox);
+            closeBtn.addEventListener('click', closeLightbox);
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeLightbox();
+            });
+        })();
+    </script>
+</body>
+
+</html>
