@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-lang="cn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Archive - SuperPicky.APP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="img/icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .archive-container {
+            max-width: 1400px;
+            margin: 120px auto 60px;
+            padding: 0 24px;
+        }
+
+        .archive-header {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .archive-table-wrapper {
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            overflow-x: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .archive-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+
+        .archive-table th,
+        .archive-table td {
+            padding: 20px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+        }
+
+        .archive-table th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+        }
+
+        .archive-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .version-cell {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            color: #4CAF50;
+            white-space: nowrap;
+        }
+
+        .date-cell {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+
+        .platform-cell {
+            min-width: 180px;
+        }
+
+        .download-link-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.85em;
+        }
+
+        .dl-link {
+            display: inline-flex;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .dl-link:hover {
+            color: #4CAF50;
+        }
+
+        .dl-link::before {
+            content: "↓";
+            margin-right: 4px;
+            font-size: 0.8em;
+        }
+
+        .note {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 4px;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="grain"></div>
+
+    <header>
+        <div class="header-inner">
+            <a href="index.html" class="logo">
+                <img src="img/icon.png" alt="SuperPicky">
+                <span>SuperPicky.APP</span>
+            </a>
+            <div class="lang-switch">
+                <button class="lang-btn active" onclick="setLang('cn')">中</button>
+                <button class="lang-btn" onclick="setLang('en')">EN</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="archive-container">
+        <div class="archive-header">
+            <h1>
+                <span class="lang-cn">历史版本归档</span>
+                <span class="lang-en">Download Archive</span>
+            </h1>
+            <p>
+                <span class="lang-cn">查看并下载 SuperPicky 的历史版本</span>
+                <span class="lang-en">View and download previous versions of SuperPicky</span>
+            </p>
+        </div>
+
+        <div class="archive-table-wrapper">
+            <table class="archive-table">
+                <thead>
+                    <tr>
+                        <th>Version</th>
+                        <th>Date</th>
+                        <th>macOS (Apple Silicon)</th>
+                        <th>macOS (Intel)</th>
+                        <th>Windows (CPU)</th>
+                        <th>Windows (CUDA)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- v4.2.1-Beta -->
+                    <tr style="background: rgba(255, 200, 0, 0.04);">
+                        <td class="version-cell" style="color: #f0a500;">v4.2.1-Beta</td>
+                        <td class="date-cell">2026-03-20</td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.2.1-beta/SuperPicky_v4.2.1-beta_arm64_ec200340.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://pan.baidu.com/s/1hJaHKGB7Rni1AoLddsTV1g?pwd=6s4k" class="dl-link" target="_blank">Baidu (6s4k)</a>
+                                <a href="https://pan.quark.cn/s/3d3652d53972" class="dl-link" target="_blank">Quark</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell"><span class="note">-</span></td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.2.1-beta/SuperPicky_Win64_4.2.1-beta_ec20034_cpu.zip"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://pan.baidu.com/s/1iEjbypJKQh34mrvAvHA82Q?pwd=39f1" class="dl-link" target="_blank">Baidu (39f1)</a>
+                                <a href="https://pan.quark.cn/s/08065f16a8d1" class="dl-link" target="_blank">Quark</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.2.1-beta/SuperPicky_Win64_4.2.1-beta_ec20034_cuda_patch.zip"
+                                    class="dl-link" target="_blank">GitHub (CUDA Patch)</a>
+                                <a href="https://pan.baidu.com/s/1-JL4mn8cMKRJCSwXaQhB6Q?pwd=n2uj" class="dl-link" target="_blank">Baidu (n2uj)</a>
+                                <a href="https://pan.quark.cn/s/2caa4af00b1b" class="dl-link" target="_blank">Quark</a>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- v4.1.0 -->
+                    <tr>
+                        <td class="version-cell">v4.1.0 LTS</td>
+                        <td class="date-cell">2026-02-25</td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.1.0/SuperPicky_v4.1.0_arm64_c869d64.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1odYNFvtYZa8pAO_bYZZCh5FZ6v0ggxFQ"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1xzex0UrSDiZeWyLuYRSqNg?pwd=t6c4" class="dl-link"
+                                    target="_blank">Baidu (t6c4)</a>
+                                <a href="https://pan.quark.cn/s/625a2dac438a" class="dl-link" target="_blank">Quark</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.1.0/SuperPicky_v4.1.0_Intel_c869d64.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1dPdCoObVLuxy9ks_sYjbfSR4bI3A-IPD"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1lNz2mBUEee8qqrd95rPJsA?pwd=3821" class="dl-link"
+                                    target="_blank">Baidu (3821)</a>
+                                <a href="https://pan.quark.cn/s/1b5d87b74059" class="dl-link" target="_blank">Quark</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.1.0/SuperPicky_Setup_Win64_4.1.0_242f4be.exe"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1nTcgQdUqotu04kVkWUZqENnQtn573uzx"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1dle-dGbKx5_On5cfdaaLXQ?pwd=872v" class="dl-link"
+                                    target="_blank">Baidu (872v)</a>
+                                <a href="https://pan.quark.cn/s/1b7016c16f79" class="dl-link" target="_blank">Quark</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://pan.baidu.com/s/1XBaGXPim_WzjpNBgG-altg?pwd=c2a6" class="dl-link"
+                                    target="_blank">Baidu (c2a6)</a>
+                                <a href="https://drive.google.com/file/d/1IKSxB3KbQdDO7VhnsGnHjOb2EgqZIgSB/view?usp=sharing"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.quark.cn/s/d15276717367" class="dl-link" target="_blank">Quark</a>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- v4.0.6 -->
+                    <tr>
+                        <td class="version-cell">v4.0.6 Beta</td>
+                        <td class="date-cell">2026-02-18</td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.6/SuperPicky_v4.0.6.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1nC4BUlSTSmXR-zKtZfw80ylEbb5GIT56/view?usp=sharing"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1sVjLG0TWhKDrhipNiKr51A?pwd=w65f" class="dl-link"
+                                    target="_blank">Baidu (w65f)</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.6/SuperPicky_v4.0.6_Intel.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/12lQhMTRXEnNO_nalIp9K0cIJAFtFuWlT/view?usp=sharing"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1oz_tZc7BARktJsVcAwSs9g?pwd=sw35" class="dl-link"
+                                    target="_blank">Baidu (sw35)</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.6/SuperPicky_4.0.6_Win64_CPU.zip"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1m-IEASCsAa3Znertanw1NcbX3IKKi2M3/view?usp=sharing"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1HXyen1PSOv46H5roNtTSTA?pwd=i374" class="dl-link"
+                                    target="_blank">Baidu (i374)</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://pan.baidu.com/s/1UUfnal8rT2Mizkdcs0xpwg?pwd=igew" class="dl-link"
+                                    target="_blank">Baidu (igew)</a>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- v4.0.5 -->
+                    <tr>
+                        <td class="version-cell">v4.0.5</td>
+                        <td class="date-cell">2026-02-15</td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.5/SuperPicky_arm64_V4.0.5.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1ykFNcV9rOpp_w04lOer0dyel7chGkS_Q/view?usp=sharing"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1QcBZvhwYn0W2n_vkA4gNaA?pwd=mx69" class="dl-link"
+                                    target="_blank">Baidu (mx69)</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.5/SuperPicky_v4.0.5_Intel.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1mYN8FS3xfgSWm7l1dMIA9UfPBCmWbNG7/view?usp=sharing"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1fQ8Wjq0oq1K9GmQTQS7rZA?pwd=cc2f" class="dl-link"
+                                    target="_blank">Baidu (cc2f)</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell"><span class="note">Use v4.0.4</span></td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://drive.google.com/file/d/17-dFw2pZKXn53zmYAZ7HQNHTyndCT76E/view?usp=drive_link"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/14tnSXnI2LIeZf4egu4xxNg?pwd=jfuz" class="dl-link"
+                                    target="_blank">Baidu (jfuz)</a>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- v4.0.4 -->
+                    <tr>
+                        <td class="version-cell">v4.0.4</td>
+                        <td class="date-cell">2026-02-09</td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.4/SuperPicky4.0.4_Win64_No_CUDA.zip"
+                                    class="dl-link" target="_blank">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1QWfDsb4L7wMoUoo17p6iiW1L9Lf-OAEv/view?usp=sharing"
+                                    class="dl-link" target="_blank">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1zhWtMwAzthrLAeKxKf4SZw?pwd=2mrt" class="dl-link"
+                                    target="_blank">Baidu (2mrt)</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                    </tr>
+                    <!-- v4.0.3 -->
+                    <tr>
+                        <td class="version-cell">v4.0.3</td>
+                        <td class="date-cell">2026-01-27</td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.3/SuperPicky_arm64_V4.0.3.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.3/SuperPicky_v4.0.3_Intel.dmg"
+                                    class="dl-link" target="_blank">GitHub</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v4.0.3/SuperPicky_Win_v4.0.3_CPU.zip"
+                                    class="dl-link" target="_blank">GitHub</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                    </tr>
+                    <!-- v3.9.4 -->
+                    <tr>
+                        <td class="version-cell">v3.9.4</td>
+                        <td class="date-cell">2025-12-XX</td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v3.9.4/SuperPicky_v3.9.4_arm64.dmg"
+                                    class="dl-link">GitHub</a>
+                                <a href="https://drive.google.com/open?id=14xve-1d14Ieb2sfVf4thd6-pv4O9af3a"
+                                    class="dl-link">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/12qwZTAKymHjFzUnOLcYzvA?pwd=h73a" class="dl-link">Baidu
+                                    (h73a)</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v3.9.4/SuperPicky_v3.9.4_x64.dmg"
+                                    class="dl-link">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1ljvJU5f8wV9DNtQ3HxoXqlv-UyQc7vta/view?usp=sharing"
+                                    class="dl-link">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/15D6S8CtzoKWpJVhDBhVfzQ?pwd=rpij" class="dl-link">Baidu
+                                    (rpij)</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v3.9.4/SuperPicky_Win_3.9.4_Lyapunov.zip"
+                                    class="dl-link">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1vQSifh8Qky7lHDwDD1tipL91gCML_skm/view?usp=sharing"
+                                    class="dl-link">Google Drive</a>
+                                <a href="https://pan.baidu.com/s/1nVJYvanFHevwAQwveAdVyg?pwd=vs8p" class="dl-link">Baidu
+                                    (vs8p)</a>
+                                <a href="https://pan.quark.cn/s/42699cdecc87?pwd=Fkf2" class="dl-link">Quark</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                    </tr>
+                    <!-- v3.8.0 -->
+                    <tr>
+                        <td class="version-cell">v3.8.0</td>
+                        <td class="date-cell">2026-01-02</td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/v3.8.0/SuperPicky_v3.8.0.dmg"
+                                    class="dl-link">GitHub</a>
+                                <a href="https://drive.google.com/file/d/1AjuEO9SZxpXdnO08F4Qe0kpqX64a-LsU/view?usp=sharing"
+                                    class="dl-link">Google Drive</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell"><span class="note">Universal / Check Link</span></td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                    </tr>
+                    <!-- 3.0 -->
+                    <tr>
+                        <td class="version-cell">v3.0</td>
+                        <td class="date-cell">2025-10-12</td>
+                        <td class="platform-cell">
+                            <div class="download-link-group">
+                                <a href="https://github.com/jamesphotography/SuperPicky/releases/download/3.0/SuperPicky_v3.0.dmg"
+                                    class="dl-link">GitHub</a>
+                            </div>
+                        </td>
+                        <td class="platform-cell"><span class="note">Universal / Check Link</span></td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                        <td class="platform-cell"><span class="date-cell">-</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-inner">
+                <div class="footer-brand">
+                    <img src="img/icon.png" alt="SuperPicky">
+                    <div class="footer-brand-text">
+                        <span>SuperPicky</span>
+                        <span class="footer-author">by James Yu (詹姆斯·于震)</span>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <a href="tutorial.html">
+                        <span class="lang-cn">使用教程</span>
+                        <span class="lang-en">Tutorial</span>
+                    </a>
+                    <a href="faq.html">
+                        <span class="lang-cn">常见问题</span>
+                        <span class="lang-en">FAQ</span>
+                    </a>
+                    <a href="sponsors.html">
+                        <span class="lang-cn">赞助者</span>
+                        <span class="lang-en">Sponsors</span>
+                    </a>
+                    <a href="https://github.com/jamesphotography/SuperPicky">GitHub</a>
+                    <a href="mailto:james@jamesphotography.com.au">
+                        <span class="lang-cn">联系</span>
+                        <span class="lang-en">Contact</span>
+                    </a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p class="copyright">
+                    © 2024-2026 James Yu · <a href="LICENSE" target="_blank"
+                        style="color: inherit; text-decoration: underline;">AGPL-3.0 License</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Language Toggle Script -->
+    <script>
+        function setLang(lang) {
+            document.documentElement.setAttribute('data-lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            localStorage.setItem('lang', lang);
+        }
+
+        // Load saved language
+        const savedLang = localStorage.getItem('lang') || 'cn';
+        document.documentElement.setAttribute('data-lang', savedLang);
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                const isCN = btn.textContent.includes('中');
+                if ((savedLang === 'cn' && isCN) || (savedLang === 'en' && !isCN)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

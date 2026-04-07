@@ -1,0 +1,3 @@
+# Exclude exiftool from language statistics
+exiftools_mac/* linguist-vendored
+exiftools_win/* linguist-vendored

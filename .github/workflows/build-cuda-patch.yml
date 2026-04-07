@@ -1,0 +1,103 @@
+name: Build and Release SuperPicky Windows
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number for the release'
+        required: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements_cuda.txt
+
+      - name: Resolve release metadata
+        id: release_meta
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $rawVersion = "${{ github.event.inputs.version }}"
+          } else {
+            $rawVersion = "${{ github.ref_name }}"
+          }
+
+          if (-not $rawVersion) {
+            throw "Release version is required."
+          }
+
+          $tag = if ($rawVersion.StartsWith("v")) { $rawVersion } else { "v$rawVersion" }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "name=SuperPicky $tag" >> $env:GITHUB_OUTPUT
+
+      - name: Create build virtual environment
+        shell: pwsh
+        run: python -m venv .venv
+
+      - name: Install CPU build dependencies
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+      - name: Build CPU and CUDA patch release payloads
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe scripts\download_models.py
+          .\.venv\Scripts\python.exe build_release_win.py --build-type cuda-patch --copy-dir output --debug
+
+      - name: Create CPU installer with Inno Setup
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        with:
+          path: ./output/installer_cpu/SuperPicky.iss
+
+      - name: Create CUDA patch installer with Inno Setup
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        with:
+          path: ./output/cuda_patch_installer/SuperPicky_CUDA_Patch.iss
+
+      - name: Prepare release assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path release_assets -Force | Out-Null
+
+          $assetPatterns = @(
+            "output/SuperPicky_Win64_*_cpu.zip",
+            "output/cuda_patch_installer/Output/SuperPicky_CUDA_Patch_Win64_*.exe",
+            "output/installer_cpu/Output/SuperPicky_Setup_Win64_*.exe",
+            "output/SuperPicky_Win64_*_cuda_patch.zip"
+          )
+
+          foreach ($pattern in $assetPatterns) {
+            $matches = Get-ChildItem -Path $pattern -File -ErrorAction Stop
+            if ($matches.Count -ne 1) {
+              throw "Expected exactly one asset for pattern '$pattern', found $($matches.Count)."
+            }
+            Copy-Item -Path $matches[0].FullName -Destination release_assets/
+          }
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.name }}
+          body_path: ChangeLog.md
+          files: |
+            release_assets/*
