@@ -680,7 +680,9 @@ class SuperPickyMainWindow(QMainWindow):
         # V4.2: 使用默认窗口大小，不最大化
         # self.showMaximized()  # 注释掉这行，使用默认大小
         
-        # 首次启动欢迎向导由 run_startup_prompts 统一调度，避免重复弹窗
+        # 首次启动欢迎向导由 run_startup_prompts 统一调度，避免重复弹窗。
+        # NOTE: onboarding 只替代“首次启动设置流程”，不替代后续手动设置入口。
+        # 因此这里仅在非首次运行时预先应用已保存的等级阈值，不在 __init__ 里直接弹窗。
         if not self.config.is_first_run:
             # 非首次运行：根据保存的水平设置滑块
             self._apply_skill_level_thresholds(self.config.skill_level)
@@ -3417,12 +3419,18 @@ class SuperPickyMainWindow(QMainWindow):
     
     def _show_skill_level_dialog(self):
         """菜单打开水平选择对话框"""
+        # 保留此手动入口：onboarding 只负责首启流程，后续用户仍可在设置菜单中单独调整摄影等级。
         dialog = SkillLevelDialog(self.i18n, self)
         dialog.level_selected.connect(self._on_skill_level_selected)
         dialog.exec()
     
     def _show_first_run_skill_level_dialog(self):
         """首次运行：显示轻量欢迎向导。"""
+        # Safety guard: onboarding 只允许作为首启流程出现。
+        # 如果未来旧代码路径误调用这里，非首次运行时直接跳过，避免重复打断用户。
+        if not self.config.is_first_run:
+            return
+
         dialog = WelcomeOnboardingDialog(self.i18n, self)
         dialog.onboarding_completed.connect(self._on_welcome_onboarding_completed)
         dialog.exec()
@@ -3432,10 +3440,13 @@ class SuperPickyMainWindow(QMainWindow):
         if self._startup_prompts_ran:
             return
 
+        # Centralized first-run gating: 所有首启提示都从这里统一进入。
+        # 这样 telemetry / consent 完成后只会决策一次，避免 onboarding 被其他启动路径重复触发。
         self._startup_prompts_ran = True
         if self.config.is_first_run:
             self._show_first_run_skill_level_dialog()
         else:
+            # 非首次运行不再进入 onboarding，只恢复上次保存的摄影等级阈值。
             self._apply_skill_level_thresholds(self.config.skill_level)
     
     def _on_skill_level_selected(self, level_key: str):
@@ -3455,6 +3466,8 @@ class SuperPickyMainWindow(QMainWindow):
 
     def _on_welcome_onboarding_completed(self, level_key: str, auto_update_enabled: bool):
         """处理首次启动欢迎向导完成。"""
+        # Keep signal payload order stable: (level_key, auto_update_enabled)
+        # 这里同时负责首启设置持久化与立即生效，避免状态已保存但主界面仍停留在旧阈值。
         self.config.set_skill_level(level_key)
         self.config.set_auto_check_updates(auto_update_enabled)
         self.config.set_is_first_run(False)

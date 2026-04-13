@@ -158,6 +158,8 @@ def main():
     if _main_window is None:
         _main_window = SuperPickyMainWindow()
         _main_window.show()
+        # 首启 onboarding 的启动时机固定在 telemetry/bootstrap 就绪之后。
+        # 这样首启流程只经由 run_startup_prompts 统一调度，避免在原始启动链路里重复弹窗。
         bootstrap_telemetry(_main_window, on_ready=_main_window.run_startup_prompts)
         # 统一退出清理：无论通过 X / 托盘 / Cmd+Q 退出，都会经由 aboutToQuit 信号
         app.aboutToQuit.connect(_main_window._cleanup_on_quit)
