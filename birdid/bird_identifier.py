@@ -261,6 +261,12 @@ class YOLOBirdDetector:
         if model_path is None:
             model_path = YOLO_MODEL_PATH
 
+        model_path = os.path.abspath(model_path)
+        if not os.path.exists(model_path):
+            print(_t("logs.yolo_load_failed", e=f"YOLO model file not found: {model_path}"))
+            self.model = None
+            return
+
         try:
             self.model = YOLO(model_path)
         except Exception as e:
