@@ -118,12 +118,12 @@ def main():
     
     commit_hash = COMMIT_HASH
     if commit_hash == "154984fd": # 默认占位符
-         try:
-             import subprocess
-             hash_short = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode('utf-8')
-             commit_hash = hash_short
-         except:
-             pass
+        try:
+            import subprocess
+            hash_short = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode('utf-8')
+            commit_hash = hash_short
+        except:
+            pass
 
     app.setApplicationName("SuperPicky")
     app.setApplicationDisplayName(f"慧眼选鸟v{APP_VERSION} ({commit_hash})")

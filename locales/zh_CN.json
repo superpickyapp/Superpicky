@@ -1020,6 +1020,27 @@
     "custom": "自选",
     "current_label": "当前: {level}"
   },
+  "onboarding": {
+    "window_title": "欢迎使用慧眼选鸟",
+    "previous": "上一页",
+    "next": "下一页",
+    "finish": "完成",
+    "welcome_badge": "WELCOME",
+    "welcome_title": "欢迎使用“慧眼选鸟”",
+    "welcome_subtitle": "三步完成首次设置，马上开始 AI 选片。",
+    "welcome_feature_title": "为鸟类摄影准备的默认流程",
+    "welcome_feature_desc": "我们先帮您设好更新偏好和摄影等级，后续也能随时在设置中修改。",
+    "update_title": "是否启用自动更新",
+    "update_subtitle": "推荐开启，启动时可自动检查版本与补丁。",
+    "update_enabled_title": "开启自动更新",
+    "update_enabled_desc": "启动时自动检查更新",
+    "update_disabled_title": "暂不开启",
+    "update_disabled_desc": "后续手动检查更新",
+    "update_hint": "这个选项之后可以在“在线更新”里随时更改。",
+    "skill_title": "选择摄影等级",
+    "skill_subtitle": "不同等级会影响默认筛选阈值；拿不准时，推荐先从“初级”开始。",
+    "skill_hint": "完成后会立即应用到主界面的锐度和美学阈值。"
+  },
   "browser": {
     "title": "选鸟结果浏览器",
     "no_db": "未找到报告数据库",

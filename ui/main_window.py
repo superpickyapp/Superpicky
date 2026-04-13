@@ -38,6 +38,7 @@ from ui.styles import (
 )
 from ui.custom_dialogs import StyledMessageBox
 from ui.skill_level_dialog import SkillLevelDialog, SKILL_PRESETS, get_skill_level_thresholds
+from ui.welcome_onboarding_dialog import WelcomeOnboardingDialog
 
 
 # V3.9: 支持拖放的目录输入框
@@ -679,10 +680,8 @@ class SuperPickyMainWindow(QMainWindow):
         # V4.2: 使用默认窗口大小，不最大化
         # self.showMaximized()  # 注释掉这行，使用默认大小
         
-        # V4.3: 首次运行时显示水平选择对话框（延迟500ms，确保UI已完成渲染）
-        if self.config.is_first_run:
-            QTimer.singleShot(500, self._show_first_run_skill_level_dialog)
-        else:
+        # 首次启动欢迎向导由 run_startup_prompts 统一调度，避免重复弹窗
+        if not self.config.is_first_run:
             # 非首次运行：根据保存的水平设置滑块
             self._apply_skill_level_thresholds(self.config.skill_level)
 
@@ -3423,9 +3422,9 @@ class SuperPickyMainWindow(QMainWindow):
         dialog.exec()
     
     def _show_first_run_skill_level_dialog(self):
-        """首次运行：显示水平选择对话框"""
-        dialog = SkillLevelDialog(self.i18n, self)
-        dialog.level_selected.connect(self._on_skill_level_selected)
+        """首次运行：显示轻量欢迎向导。"""
+        dialog = WelcomeOnboardingDialog(self.i18n, self)
+        dialog.onboarding_completed.connect(self._on_welcome_onboarding_completed)
         dialog.exec()
 
     def run_startup_prompts(self):
@@ -3453,6 +3452,21 @@ class SuperPickyMainWindow(QMainWindow):
         self._update_skill_level_label(level_key)
         
         print(self.i18n.t("logs.skill_level_selected", level=level_key))
+
+    def _on_welcome_onboarding_completed(self, level_key: str, auto_update_enabled: bool):
+        """处理首次启动欢迎向导完成。"""
+        self.config.set_skill_level(level_key)
+        self.config.set_auto_check_updates(auto_update_enabled)
+        self.config.set_is_first_run(False)
+        self.config.save()
+
+        self._apply_skill_level_thresholds(level_key)
+        self._update_skill_level_label(level_key)
+
+        print(
+            f"[onboarding] first-run setup saved: "
+            f"skill_level={level_key}, auto_check_updates={auto_update_enabled}"
+        )
     
     def _apply_skill_level_thresholds(self, level_key: str):
         """应用水平预设的阈值到滑块"""

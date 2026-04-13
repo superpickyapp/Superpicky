@@ -1021,6 +1021,27 @@
     "custom": "Custom",
     "current_label": "Current: {level}"
   },
+  "onboarding": {
+    "window_title": "Welcome to SuperPicky",
+    "previous": "Previous",
+    "next": "Next",
+    "finish": "Finish",
+    "welcome_badge": "WELCOME",
+    "welcome_title": "Welcome to SuperPicky",
+    "welcome_subtitle": "Finish setup in three quick steps and start culling.",
+    "welcome_feature_title": "A smoother default workflow for bird photographers",
+    "welcome_feature_desc": "We'll set your update preference and photography level now, and you can change both later in Settings.",
+    "update_title": "Enable Auto Update",
+    "update_subtitle": "Recommended so startup can check for new releases and patches.",
+    "update_enabled_title": "Enable auto update",
+    "update_enabled_desc": "Check for updates on startup",
+    "update_disabled_title": "Not now",
+    "update_disabled_desc": "Check manually later",
+    "update_hint": "You can change this later in the Update Center.",
+    "skill_title": "Choose Your Photography Level",
+    "skill_subtitle": "This changes the default culling thresholds. If you're unsure, start with Intermediate.",
+    "skill_hint": "Your choice will be applied to the main window thresholds right away."
+  },
   "browser": {
     "title": "Selection Results Browser",
     "no_db": "Report database not found",
