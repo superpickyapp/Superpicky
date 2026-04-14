@@ -76,9 +76,13 @@ from app_user_stat.telemetry import bootstrap_telemetry
 from ui.main_window import SuperPickyMainWindow
 from ui.styles import APP_TOOLTIP_STYLE
 from tools.system_logger import setup_error_logging
+from config import migrate_old_data
 
 # 尽早捕获未处理异常，写入 superpicky.log（或 config dir fallback）
 setup_error_logging()
+
+# 执行数据迁移（从旧路径迁移到标准配置目录）
+migrate_old_data()
 
 # 内存监视器（开发调试用）：设置环境变量 SP_MEMORY_MONITOR=1 启用
 # 例：SP_MEMORY_MONITOR=1 python main.py

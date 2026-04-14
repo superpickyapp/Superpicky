@@ -31,7 +31,7 @@ from PySide6.QtGui import QFont, QPixmap, QIcon, QAction, QTextCursor, QColor, Q
 
 from tools.i18n import get_i18n, set_primary_language
 from advanced_config import get_advanced_config
-from config import config as app_config
+from config import config as app_config, get_app_config_dir
 from ui.styles import (
     GLOBAL_STYLE, TITLE_STYLE, SUBTITLE_STYLE, VERSION_STYLE, VALUE_STYLE,
     COLORS, FONTS, LOG_COLORS, PROGRESS_INFO_STYLE, PROGRESS_PERCENT_STYLE
@@ -198,13 +198,9 @@ class WorkerThread(threading.Thread):
         try:
             import json
             import re
-            import sys as sys_module
             import os
 
-            if sys_module.platform == 'darwin':
-                birdid_settings_dir = os.path.expanduser('~/Documents/SuperPicky_Data')
-            else:
-                birdid_settings_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'SuperPicky_Data')
+            birdid_settings_dir = str(get_app_config_dir())
             birdid_settings_path = os.path.join(birdid_settings_dir, 'birdid_dock_settings.json')
 
             if os.path.exists(birdid_settings_path):
@@ -1051,10 +1047,7 @@ class SuperPickyMainWindow(QMainWindow):
         """识鸟开关状态变化 - 同步到 BirdID Dock 设置"""
         import json
         try:
-            if sys.platform == 'darwin':
-                settings_dir = os.path.expanduser('~/Documents/SuperPicky_Data')
-            else:
-                settings_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'SuperPicky_Data')
+            settings_dir = str(get_app_config_dir())
             os.makedirs(settings_dir, exist_ok=True)
             settings_path = os.path.join(settings_dir, 'birdid_dock_settings.json')
             
@@ -1243,10 +1236,7 @@ class SuperPickyMainWindow(QMainWindow):
         birdid_saved_state = False
         try:
             import json
-            if sys.platform == 'darwin':
-                settings_dir = os.path.expanduser('~/Documents/SuperPicky_Data')
-            else:
-                settings_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'SuperPicky_Data')
+            settings_dir = str(get_app_config_dir())
             settings_path = os.path.join(settings_dir, 'birdid_dock_settings.json')
             if os.path.exists(settings_path):
                 with open(settings_path, 'r', encoding='utf-8') as f:

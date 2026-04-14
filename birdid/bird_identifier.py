@@ -17,7 +17,7 @@ import os
 import sys
 from typing import Optional, List, Dict, Tuple, Set
 from tools.i18n import t as _t
-from config import get_best_device, get_lazy_registry
+from config import get_best_device, get_lazy_registry, get_app_config_dir
 
 # ==================== 设备配置 ====================
 
@@ -84,13 +84,8 @@ def get_project_path(relative_path: str) -> str:
 
 
 def get_user_data_dir() -> str:
-    """获取用户数据目录"""
-    if sys.platform == 'darwin':
-        user_data_dir = os.path.expanduser('~/Documents/SuperPicky_Data')
-    elif sys.platform == 'win32':
-        user_data_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'SuperPicky_Data')
-    else:
-        user_data_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'SuperPicky_Data')
+    """获取用户数据目录（统一使用标准配置目录）"""
+    user_data_dir = str(get_app_config_dir())
     os.makedirs(user_data_dir, exist_ok=True)
     return user_data_dir
 

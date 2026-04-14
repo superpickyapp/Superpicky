@@ -86,13 +86,15 @@ def get_app_data_dir(app_name: str = 'SuperPicky') -> Path:
     返回跨平台用户数据目录（存放 birdid 设置等用户产物）。
     Return the cross-platform user data directory.
 
-    ⚠️  与 get_app_config_dir() 完全不同的路径，请勿混用：
-      所有平台：~/Documents/SuperPicky_Data/
+    ⚠️  现已统一使用标准配置目录，与 get_app_config_dir() 返回相同路径：
+      macOS : ~/Library/Application Support/SuperPicky/
+      Windows: ~/AppData/Local/SuperPicky/
+      Linux  : ~/.config/SuperPicky/
 
     用途：birdid_dock_settings.json 等用户可见的数据文件。
     切勿用于存放补丁或程序内部配置（应使用 get_app_config_dir()）。
     """
-    return Path.home() / 'Documents' / f'{app_name}_Data'
+    return get_app_config_dir(app_name)
 
 
 def get_patch_dir(app_name: str = 'SuperPicky') -> Path:
@@ -651,6 +653,87 @@ def get_best_device():
         return torch.device('cpu')
     except Exception:
         return torch.device('cpu')
+
+
+# =========================
+# 数据迁移
+# =========================
+
+
+def migrate_old_data() -> bool:
+    """
+    迁移旧路径数据到新路径。
+    Migrate old path data to new path.
+
+    检测 ~/Documents/SuperPicky_Data 目录是否存在数据，
+    如果存在则迁移到 get_app_config_dir() 返回的标准配置目录。
+
+    Returns:
+        bool: 迁移是否成功（如果没有旧数据也返回 True）
+    """
+    try:
+        old_data_dir = Path.home() / 'Documents' / 'SuperPicky_Data'
+        new_data_dir = get_app_config_dir()
+
+        if not old_data_dir.exists():
+            return True
+
+        if not old_data_dir.is_dir():
+            return True
+
+        files = list(old_data_dir.iterdir())
+        if not files:
+            return True
+
+        print(f"检测到旧数据目录: {old_data_dir}")
+        print(f"开始迁移到新目录: {new_data_dir}")
+
+        new_data_dir.mkdir(parents=True, exist_ok=True)
+
+        copied_files = []
+        for file_path in files:
+            try:
+                dest_path = new_data_dir / file_path.name
+                if file_path.is_file():
+                    import shutil
+                    shutil.copy2(file_path, dest_path)
+                    copied_files.append(file_path.name)
+                elif file_path.is_dir():
+                    import shutil
+                    shutil.copytree(file_path, dest_path, dirs_exist_ok=True)
+                    copied_files.append(file_path.name)
+            except Exception as e:
+                print(f"复制文件失败 {file_path.name}: {e}")
+                return False
+
+        print(f"成功迁移 {len(copied_files)} 个文件/目录")
+
+        for file_name in copied_files:
+            try:
+                old_path = old_data_dir / file_name
+                if old_path.exists():
+                    if old_path.is_file():
+                        old_path.unlink()
+                    elif old_path.is_dir():
+                        import shutil
+                        shutil.rmtree(old_path)
+            except Exception as e:
+                print(f"删除旧文件失败 {file_name}: {e}")
+
+        try:
+            if old_data_dir.exists() and old_data_dir.is_dir():
+                import shutil
+                shutil.rmtree(old_data_dir)
+                print(f"已删除旧数据目录: {old_data_dir}")
+        except Exception as e:
+            print(f"删除旧目录失败: {e}")
+
+        print("数据迁移完成")
+        return True
+
+    except Exception as e:
+        print(f"数据迁移失败: {e}")
+        return False
 
 
 # 全局配置实例，供多数模块直接 import 使用。

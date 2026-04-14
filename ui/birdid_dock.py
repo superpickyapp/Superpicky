@@ -19,7 +19,7 @@ from PySide6.QtCore import Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QFont
 
 from ui.styles import COLORS, FONTS
-
+from config import get_app_config_dir
 
 from tools.i18n import get_i18n
 
@@ -32,11 +32,8 @@ def get_birdid_data_path(relative_path: str) -> str:
 
 
 def get_settings_path() -> str:
-    """获取设置文件路径"""
-    if sys.platform == 'darwin':
-        settings_dir = os.path.expanduser('~/Documents/SuperPicky_Data')
-    else:
-        settings_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'SuperPicky_Data')
+    """获取设置文件路径（统一使用标准配置目录）"""
+    settings_dir = str(get_app_config_dir())
     os.makedirs(settings_dir, exist_ok=True)
     return os.path.join(settings_dir, 'birdid_dock_settings.json')
 
