@@ -98,6 +98,8 @@ class AdvancedConfig:
         # V4.3+: 运行时选择与能力探测
         "selected_runtime_variant": "auto",   # auto | cpu | cuda | mac
         "detected_cuda_capable": False,
+        "runtime_install_location_preference": None,  # None | default | install
+        "resolved_runtime_dir": None,
 
         # V4.3+: 首启启用的功能集与资源记录
         "enabled_feature_set": [
@@ -434,6 +436,23 @@ class AdvancedConfig:
 
     def set_detected_cuda_capable(self, value: bool):
         self._set_init_config("detected_cuda_capable", bool(value))
+
+    @property
+    def runtime_install_location_preference(self):
+        value = self.config.get("runtime_install_location_preference", None)
+        return value if value in ("default", "install", None) else None
+
+    def set_runtime_install_location_preference(self, value):
+        normalized = value if value in ("default", "install") else None
+        self._set_init_config("runtime_install_location_preference", normalized)
+
+    @property
+    def resolved_runtime_dir(self):
+        value = self.config.get("resolved_runtime_dir", None)
+        return None if value in (None, "") else str(value)
+
+    def set_resolved_runtime_dir(self, value):
+        self._set_init_config("resolved_runtime_dir", None if not value else str(value))
 
     @property
     def enabled_feature_set(self) -> list:

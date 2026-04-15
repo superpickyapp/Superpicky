@@ -8,14 +8,16 @@ import os
 import sys
 import threading
 import subprocess
+from types import SimpleNamespace
 from pathlib import Path
 
 
 def get_resource_path(relative_path):
     """获取资源文件路径（兼容 PyInstaller 打包环境）"""
     # PyInstaller 打包后会设置 _MEIPASS
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
+    meipass = getattr(sys, "_MEIPASS", None)
+    if isinstance(meipass, str):
+        return os.path.join(meipass, relative_path)
     # 开发环境
     return os.path.join(os.path.dirname(os.path.dirname(__file__)), relative_path)
 
@@ -94,7 +96,7 @@ class WorkerThread(threading.Thread):
         self.dir_path = dir_path
         self.ui_settings = ui_settings
         self.signals = signals
-        self.i18n = i18n
+        self.i18n = i18n or get_i18n()
         self.resume = resume
         self._stop_event = threading.Event()
         self._active_processor = None
@@ -200,7 +202,6 @@ class WorkerThread(threading.Thread):
         try:
             import json
             import re
-            import os
 
             birdid_settings_dir = str(get_app_config_dir())
             birdid_settings_path = os.path.join(birdid_settings_dir, 'birdid_dock_settings.json')
@@ -265,8 +266,8 @@ class WorkerThread(threading.Thread):
             # BirdID 设置
             auto_identify=birdid_auto_identify,
             birdid_use_ebird=birdid_use_ebird,
-            birdid_country_code=birdid_country_code,
-            birdid_region_code=birdid_region_code,
+            birdid_country_code=birdid_country_code or "",
+            birdid_region_code=birdid_region_code or "",
             birdid_confidence_threshold=float(birdid_confidence_threshold),  # V4.2
         )
 
@@ -645,7 +646,7 @@ class SuperPickyMainWindow(QMainWindow):
         self.reset_log_signal.connect(self._log)
         # 修复Crash: 确保日志信号连接到主线程槽
         # noinspection PyUnresolvedReferences
-        self.log_signal.connect(self._log, Qt.QueuedConnection)
+        self.log_signal.connect(self._log, Qt.ConnectionType.QueuedConnection)
         self.reset_complete_signal.connect(self._on_reset_complete)
         self.reset_error_signal.connect(self._on_reset_error)
         
@@ -877,7 +878,7 @@ class SuperPickyMainWindow(QMainWindow):
         from .birdid_dock import BirdIDDockWidget
 
         self.birdid_dock = BirdIDDockWidget(self)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.birdid_dock)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.birdid_dock)
         
         # 设置 dock 初始宽度为最小值，让主区域更宽
         self.birdid_dock.setFixedWidth(280)
@@ -965,19 +966,22 @@ class SuperPickyMainWindow(QMainWindow):
         # macOS: 恢复 Dock 图标
         if sys.platform == 'darwin':
             try:
-                from AppKit import NSApp, NSApplicationActivationPolicyRegular
-                NSApp.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+                import importlib
+                appkit = importlib.import_module("AppKit")
+                appkit.NSApp.setActivationPolicy_(appkit.NSApplicationActivationPolicyRegular)
                 print("✅ 已恢复 Dock 图标")
-            except ImportError:
+            except Exception:
                 pass
-            except Exception as e:
-                print(f"⚠️ 恢复 Dock 图标失败: {e}")
         
         self.show()
         self.raise_()
         self.activateWindow()
         # 确保窗口获得焦点
-        self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+        self.setWindowState(
+            self.windowState()
+            & ~Qt.WindowState.WindowMinimized
+            | Qt.WindowState.WindowActive
+        )
     
     def _quit_app(self):
         """完全退出应用（清理由 aboutToQuit 信号统一处理）"""
@@ -1036,7 +1040,7 @@ class SuperPickyMainWindow(QMainWindow):
             self,
             self.i18n.t("menu.background_mode_title"),
             self.i18n.t("menu.background_mode_msg"),
-            QMessageBox.Ok
+            QMessageBox.StandardButton.Ok
         )
         
         # 3. 设置后台模式标志，然后退出 GUI
@@ -1103,7 +1107,12 @@ class SuperPickyMainWindow(QMainWindow):
             icon_inner_layout.setContentsMargins(2, 2, 2, 2)
 
             icon_label = QLabel()
-            pixmap = QPixmap(icon_path).scaled(44, 44, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pixmap = QPixmap(icon_path).scaled(
+                44,
+                44,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
             icon_label.setPixmap(pixmap)
             icon_inner_layout.addWidget(icon_label)
             brand_layout.addWidget(icon_container)
@@ -1146,7 +1155,7 @@ class SuperPickyMainWindow(QMainWindow):
         
         version_label = QLabel(version_text)
         version_label.setStyleSheet(VERSION_STYLE)
-        version_label.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        version_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
         header_layout.addWidget(version_label)
 
 
@@ -1291,7 +1300,7 @@ class SuperPickyMainWindow(QMainWindow):
         sharp_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px; min-width: 80px;")
         sharp_layout.addWidget(sharp_label)
 
-        self.sharp_slider = QSlider(Qt.Horizontal)
+        self.sharp_slider = QSlider(Qt.Orientation.Horizontal)
         self.sharp_slider.setRange(200, 600)  # 新范围 200-600
         self.sharp_slider.setValue(400)  # 新默认值
         self.sharp_slider.setSingleStep(10)  # V4.0: 更精细的调节（键盘方向键）
@@ -1302,7 +1311,7 @@ class SuperPickyMainWindow(QMainWindow):
         self.sharp_value = QLabel("400")  # 新默认值
         self.sharp_value.setStyleSheet(VALUE_STYLE)
         self.sharp_value.setFixedWidth(50)
-        self.sharp_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.sharp_value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         sharp_layout.addWidget(self.sharp_value)
 
         sliders_layout.addLayout(sharp_layout)
@@ -1315,7 +1324,7 @@ class SuperPickyMainWindow(QMainWindow):
         nima_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px; min-width: 80px;")
         nima_layout.addWidget(nima_label)
 
-        self.nima_slider = QSlider(Qt.Horizontal)
+        self.nima_slider = QSlider(Qt.Orientation.Horizontal)
         self.nima_slider.setRange(40, 70)  # 新范围 4.0-7.0
         self.nima_slider.setValue(50)  # 默认值 5.0
         self.nima_slider.valueChanged.connect(self._on_nima_changed)
@@ -1324,7 +1333,7 @@ class SuperPickyMainWindow(QMainWindow):
         self.nima_value = QLabel("5.0")  # 默认值
         self.nima_value.setStyleSheet(VALUE_STYLE)
         self.nima_value.setFixedWidth(50)
-        self.nima_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.nima_value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         nima_layout.addWidget(self.nima_value)
 
         sliders_layout.addLayout(nima_layout)
@@ -1403,7 +1412,7 @@ class SuperPickyMainWindow(QMainWindow):
         """创建状态条（进度条下方，按钮上方）"""
         self._status_banner = QLabel(self.i18n.t("labels.support_format_hint"))
         self._status_banner.setFixedHeight(32)
-        self._status_banner.setAlignment(Qt.AlignCenter)
+        self._status_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._status_banner.setStyleSheet(f"""
             QLabel {{
                 background-color: {COLORS['bg_card']};
@@ -1499,7 +1508,7 @@ class SuperPickyMainWindow(QMainWindow):
             self,
             self.i18n.t("labels.select_photo_dir"),
             "",
-            QFileDialog.ShowDirsOnly
+            QFileDialog.Option.ShowDirsOnly
         )
         if directory:
             self._handle_directory_selection(directory)
@@ -1535,7 +1544,7 @@ class SuperPickyMainWindow(QMainWindow):
 
     def _check_directory_health(self, directory: str):
         """检查目标目录的磁盘空间和写权限，结果输出到 UI 日志。"""
-        import shutil, os
+        import shutil
         try:
             usage = shutil.disk_usage(directory)
             free_gb = usage.free / (1024 ** 3)
@@ -2180,11 +2189,7 @@ class SuperPickyMainWindow(QMainWindow):
                         emit_log(f"\n\U0001f504 [{idx}/{len(sub_dirs_to_reset)}] {rel}/")
                         try:
                             # Reuse CLI reset logic
-                            class _ResetArgs:
-                                pass
-                            _args = _ResetArgs()
-                            _args.directory = sub_dir
-                            _args.yes = True
+                            _args = SimpleNamespace(directory=sub_dir, yes=True)
                             from superpicky_cli import cmd_reset as _cli_reset
                             _cli_reset(_args)
                             emit_log(f"  \u2705 {rel}/ reset done")
@@ -2547,7 +2552,7 @@ class SuperPickyMainWindow(QMainWindow):
         print(message)
 
         cursor = self.log_text.textCursor()
-        cursor.movePosition(QTextCursor.End)
+        cursor.movePosition(QTextCursor.MoveOperation.End)
 
         # 根据标签选择颜色
         if tag == "error":
@@ -3030,6 +3035,7 @@ class SuperPickyMainWindow(QMainWindow):
                     has_update, info = checker.check_for_updates(
                         include_prerelease=_cfg.include_prerelease
                     )
+                    info = info or {}
                     if has_update:
                         text  = f"{self.i18n.t('update.update_center_result_has_update')} V{info.get('version','')}"
                         color = COLORS['accent']
@@ -3223,7 +3229,12 @@ class SuperPickyMainWindow(QMainWindow):
                     QPushButton:hover {{ background-color: {COLORS['accent_hover']}; }}
                 """)
                 from PySide6.QtWidgets import QApplication
-                restart_btn.clicked.connect(lambda: (dialog.accept(), QApplication.instance().quit()))
+                def _restart_app():
+                    dialog.accept()
+                    app = QApplication.instance()
+                    if app is not None:
+                        app.quit()
+                restart_btn.clicked.connect(_restart_app)
                 btn_row.addWidget(restart_btn)
 
                 btn_row.addSpacing(8)
@@ -3452,8 +3463,7 @@ class SuperPickyMainWindow(QMainWindow):
         dialog.exec()
 
     def _initialization_ready(self) -> bool:
-        selected_features = self.config.enabled_feature_set
-        return self._init_manager.is_ready_for_main_ui(selected_features)
+        return self._init_manager.is_ready_for_main_ui()
 
     def _skip_until_initialized(self, log_message: str) -> bool:
         if self._initialization_ready():
@@ -3495,7 +3505,7 @@ class SuperPickyMainWindow(QMainWindow):
         # Centralized first-run gating: 所有首启提示都从这里统一进入。
         # 这样 telemetry / consent 完成后只会决策一次，避免 onboarding 被其他启动路径重复触发。
         self._startup_prompts_ran = True
-        needs_init = self._init_manager.needs_initialization(self.config.enabled_feature_set)
+        needs_init = self._init_manager.needs_initialization()
         if self.config.is_first_run or needs_init:
             self._show_first_run_skill_level_dialog()
         else:

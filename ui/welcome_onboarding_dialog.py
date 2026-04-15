@@ -13,7 +13,6 @@ from PySide6.QtCore import Qt, QObject, QTimer, Signal, QEasingCurve
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -37,7 +36,8 @@ from ui.styles import COLORS, FONTS
 
 UPDATE_OPTION_KEYS = ("enabled", "disabled")
 SKILL_LEVEL_KEYS = ("beginner", "intermediate", "master")
-FEATURE_OPTION_KEYS = ("core_detection", "quality", "keypoint", "flight", "birdid")
+RUNTIME_INSTALL_OPTION_KEYS = ("default", "install")
+FULL_FEATURE_SET = ("core_detection", "quality", "keypoint", "flight", "birdid")
 
 SELECTABLE_CARD_TITLE_STYLE = f"""
     color: {COLORS['text_primary']};
@@ -224,6 +224,30 @@ class SelectableCard(QFrame):
     def mousePressEvent(self, event):
         self.clicked.emit(self.option_key)
         super().mousePressEvent(event)
+
+
+class ModelInfoCard(QFrame):
+    def __init__(self, title: str, description: str, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['bg_elevated']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 8px;
+            }}
+        """)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(6)
+
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"color: {COLORS['text_primary']}; font-size: 14px; font-weight: 600;")
+        layout.addWidget(title_label)
+
+        desc_label = QLabel(description)
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px;")
+        layout.addWidget(desc_label)
 
 
 class RoundedProgressBar(QWidget):
@@ -481,12 +505,10 @@ class EnvironmentRepairDialog(QDialog):
         layout.addLayout(btn_row)
 
     def _repair_options(self) -> dict:
-        selected_features = list(self.config.enabled_feature_set or [])
-        if "core_detection" not in selected_features:
-            selected_features.insert(0, "core_detection")
         return {
             "runtime_variant": self.config.selected_runtime_variant or "auto",
-            "features": selected_features,
+            "runtime_install_location": self.config.runtime_install_location_preference,
+            "features": list(FULL_FEATURE_SET),
             "auto_update_enabled": self.config.auto_check_updates,
         }
 
@@ -528,11 +550,12 @@ class WelcomeOnboardingDialog(QDialog):
         self._dots: list[QLabel] = []
         self._skill_cards: dict[str, SkillLevelCard] = {}
         self._update_cards: dict[str, SelectableCard] = {}
-        self._feature_boxes: dict[str, QCheckBox] = {}
+        self._runtime_location_cards: dict[str, SelectableCard] = {}
         self._initialization_complete = False
         self._background_mode = False
 
         self.initialization_manager = InitializationManager(self)
+        self.selected_runtime_install_location = self._default_runtime_install_location()
 
         self.setModal(True)
         self.setWindowTitle(self.i18n.t("onboarding.window_title"))
@@ -557,14 +580,15 @@ class WelcomeOnboardingDialog(QDialog):
             "skill_level": self.selected_level,
             "auto_update_enabled": self.auto_update_enabled,
             "runtime_variant": self.config.selected_runtime_variant or "auto",
-            "features": self._selected_features(),
+            "runtime_install_location": self.selected_runtime_install_location,
+            "features": list(FULL_FEATURE_SET),
         }
 
-    def _selected_features(self) -> list[str]:
-        features = [key for key, box in self._feature_boxes.items() if box.isChecked()]
-        if "core_detection" not in features:
-            features.insert(0, "core_detection")
-        return features
+    def _default_runtime_install_location(self) -> str:
+        preferred = self.config.runtime_install_location_preference
+        if preferred in RUNTIME_INSTALL_OPTION_KEYS:
+            return self.initialization_manager.choose_runtime_install_location(preferred).key
+        return self.initialization_manager.choose_runtime_install_location().key
 
     def _create_page_widget(self) -> tuple[QWidget, QVBoxLayout]:
         page = QWidget()
@@ -731,15 +755,37 @@ class WelcomeOnboardingDialog(QDialog):
         page, layout = self._create_page_widget()
         layout.addWidget(self._create_text_label(self.i18n.t("onboarding.features_title"), PAGE_TITLE_STYLE))
         layout.addWidget(self._create_text_label(self.i18n.t("onboarding.features_subtitle"), BODY_SUBTITLE_STYLE))
-        for feature_key in FEATURE_OPTION_KEYS:
-            checkbox = QCheckBox(
-                self.i18n.t(f"onboarding.feature_{feature_key}_label")
+        for feature_key in FULL_FEATURE_SET:
+            layout.addWidget(
+                ModelInfoCard(
+                    self.i18n.t(f"onboarding.model_{feature_key}_title"),
+                    self.i18n.t(f"onboarding.model_{feature_key}_desc"),
+                )
             )
-            checkbox.setChecked(feature_key in self.config.enabled_feature_set or feature_key == "core_detection")
-            if feature_key == "core_detection":
-                checkbox.setEnabled(False)
-            self._feature_boxes[feature_key] = checkbox
-            layout.addWidget(checkbox)
+        layout.addSpacing(4)
+        layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_title"), PAGE_TITLE_STYLE))
+        layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_subtitle"), BODY_SUBTITLE_STYLE))
+        cards = []
+        for option in self.initialization_manager.get_runtime_install_location_options():
+            if not option.writable:
+                continue
+            card = SelectableCard(
+                option.key,
+                self.i18n.t(f"onboarding.install_location_{option.key}_title"),
+                self.i18n.t(f"onboarding.install_location_{option.key}_desc"),
+            )
+            card.clicked.connect(self._on_runtime_install_location_clicked)
+            self._runtime_location_cards[option.key] = card
+            cards.append(card)
+        if cards:
+            layout.addLayout(self._create_card_row(cards))
+        resolved_runtime_dir = self.initialization_manager.resolve_runtime_dir(self.selected_runtime_install_location)
+        self.install_location_path_label = self._create_text_label(
+            self.i18n.t("onboarding.install_location_path", path=str(resolved_runtime_dir)),
+            HINT_STYLE,
+        )
+        layout.addWidget(self.install_location_path_label)
+        layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_hint"), HINT_STYLE))
         layout.addWidget(self._create_text_label(self._runtime_hint_text(), HINT_STYLE))
         layout.addStretch()
         return page
@@ -776,6 +822,7 @@ class WelcomeOnboardingDialog(QDialog):
     def _sync_defaults(self):
         self._set_auto_update_enabled(self.auto_update_enabled, force=True)
         self._set_skill_level(self.selected_level, force=True)
+        self._set_runtime_install_location(self.selected_runtime_install_location, force=True)
 
     def _set_auto_update_enabled(self, enabled: bool, *, force: bool = False):
         if not force and self.auto_update_enabled == enabled:
@@ -788,6 +835,19 @@ class WelcomeOnboardingDialog(QDialog):
             return
         self.selected_level = level_key
         self._apply_single_selection(self._skill_cards, level_key)
+
+    def _set_runtime_install_location(self, option_key: str, *, force: bool = False):
+        if option_key not in self._runtime_location_cards:
+            option_key = self.initialization_manager.choose_runtime_install_location(option_key).key
+        if not force and self.selected_runtime_install_location == option_key:
+            return
+        self.selected_runtime_install_location = option_key
+        self._apply_single_selection(self._runtime_location_cards, option_key)
+        if hasattr(self, "install_location_path_label"):
+            resolved_runtime_dir = self.initialization_manager.resolve_runtime_dir(option_key)
+            self.install_location_path_label.setText(
+                self.i18n.t("onboarding.install_location_path", path=str(resolved_runtime_dir))
+            )
 
     def _set_current_page(self, page_index: int, *, force: bool = False):
         if not 0 <= page_index < self._page_count():
@@ -818,6 +878,9 @@ class WelcomeOnboardingDialog(QDialog):
 
     def _on_skill_level_clicked(self, level_key: str):
         self._set_skill_level(level_key)
+
+    def _on_runtime_install_location_clicked(self, option_key: str):
+        self._set_runtime_install_location(option_key)
 
     def _go_previous(self):
         self._set_current_page(self.current_page - 1)

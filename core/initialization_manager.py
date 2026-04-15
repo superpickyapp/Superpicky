@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,6 +55,8 @@ RUNTIME_REQUIREMENTS = {
     "mac": "requirements_runtime_mac.txt",
 }
 
+FULL_FEATURE_SET = ("core_detection", "quality", "keypoint", "flight", "birdid")
+
 STAGE_NOT_STARTED = "not_started"
 STAGE_PROBING = "probing_sources"
 STAGE_CHECKING_UPDATES = "checking_updates"
@@ -71,6 +74,14 @@ class RuntimeSelection:
     reason: str
 
 
+@dataclass(frozen=True)
+class RuntimeInstallLocation:
+    key: str
+    runtime_dir: Path
+    free_bytes: Optional[int]
+    writable: bool
+
+
 class InitializationManager(QObject):
     stage_changed = Signal(str, str)
     progress_changed = Signal(int, str, int, int)
@@ -84,12 +95,12 @@ class InitializationManager(QObject):
         self._last_options: Optional[dict] = None
         self._last_mode: str = "init"
         self._project_root = Path(__file__).resolve().parent.parent
-        self._runtime_dir = get_app_config_dir() / "runtime_env"
+        self._runtime_dir = self.resolve_runtime_dir(self.config.runtime_install_location_preference)
         self._source_map: Dict[str, str] = {}
 
     @staticmethod
     def _normalize_features(selected_features: Optional[Iterable[str]]) -> list[str]:
-        features = list(selected_features or [])
+        features = list(selected_features or FULL_FEATURE_SET)
         if "core_detection" not in features:
             features.insert(0, "core_detection")
         return features
@@ -100,6 +111,8 @@ class InitializationManager(QObject):
             "initialization_in_progress": self.config.set_initialization_in_progress,
             "selected_runtime_variant": self.config.set_selected_runtime_variant,
             "detected_cuda_capable": self.config.set_detected_cuda_capable,
+            "runtime_install_location_preference": self.config.set_runtime_install_location_preference,
+            "resolved_runtime_dir": self.config.set_resolved_runtime_dir,
             "enabled_feature_set": self.config.set_enabled_feature_set,
             "downloaded_resources": self.config.set_downloaded_resources,
             "resolved_source_map": self.config.set_resolved_source_map,
@@ -115,9 +128,80 @@ class InitializationManager(QObject):
     def _emit_item_status(self, resource_id: str, status: str, detail: str) -> None:
         self.item_status_changed.emit(resource_id, status, detail)
 
+    def _installation_root(self) -> Path:
+        if getattr(sys, "frozen", False):
+            executable = Path(sys.executable).resolve()
+            if sys.platform == "darwin" and executable.parent.name == "MacOS":
+                return executable.parents[2]
+            return executable.parent
+        return self._project_root
+
+    def _runtime_install_locations(self) -> dict[str, Path]:
+        return {
+            "default": get_app_config_dir() / "runtime_env",
+            "install": self._installation_root() / "runtime_env",
+        }
+
+    @staticmethod
+    def _existing_probe_path(path: Path) -> Path:
+        current = path
+        while not current.exists() and current != current.parent:
+            current = current.parent
+        return current
+
+    def _free_bytes_for_path(self, path: Path) -> Optional[int]:
+        probe_path = self._existing_probe_path(path)
+        try:
+            return shutil.disk_usage(probe_path).free
+        except Exception:
+            return None
+
+    def _is_runtime_dir_writable(self, path: Path) -> bool:
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=path, delete=True):
+                pass
+            return True
+        except Exception:
+            return False
+
+    def get_runtime_install_location_options(self) -> list[RuntimeInstallLocation]:
+        options = []
+        for key, runtime_dir in self._runtime_install_locations().items():
+            options.append(
+                RuntimeInstallLocation(
+                    key=key,
+                    runtime_dir=runtime_dir,
+                    free_bytes=self._free_bytes_for_path(runtime_dir),
+                    writable=self._is_runtime_dir_writable(runtime_dir),
+                )
+            )
+        return options
+
+    def choose_runtime_install_location(self, preferred_key: Optional[str] = None) -> RuntimeInstallLocation:
+        options = [item for item in self.get_runtime_install_location_options() if item.writable]
+        if not options:
+            default_dir = self._runtime_install_locations()["default"]
+            return RuntimeInstallLocation("default", default_dir, None, True)
+
+        by_key = {item.key: item for item in options}
+        if preferred_key in by_key:
+            return by_key[preferred_key]
+
+        comparable = [item for item in options if item.free_bytes is not None]
+        if comparable:
+            return max(comparable, key=lambda item: (item.free_bytes or -1, item.key == "default"))
+        return by_key.get("default", options[0])
+
+    def resolve_runtime_dir(self, preferred_key: Optional[str] = None) -> Path:
+        return self.choose_runtime_install_location(preferred_key).runtime_dir
+
     def start(self, options: dict, mode: str = "init") -> None:
         normalized_options = dict(options)
         normalized_options["features"] = self._normalize_features(normalized_options.get("features"))
+        normalized_options["runtime_install_location"] = self.choose_runtime_install_location(
+            normalized_options.get("runtime_install_location") or self.config.runtime_install_location_preference
+        ).key
         self._last_options = normalized_options
         self._last_mode = mode
         if self._thread and self._thread.is_alive():
@@ -202,9 +286,15 @@ class InitializationManager(QObject):
     def _run(self, options: dict, mode: str) -> None:
         try:
             selected_features = self._normalize_features(options.get("features"))
+            runtime_location = self.choose_runtime_install_location(
+                options.get("runtime_install_location") or self.config.runtime_install_location_preference
+            )
+            self._runtime_dir = runtime_location.runtime_dir
             self._save_config(
                 initialization_in_progress=(mode == "init"),
                 last_init_error=None,
+                runtime_install_location_preference=runtime_location.key,
+                resolved_runtime_dir=str(runtime_location.runtime_dir),
             )
 
             runtime_choice = self.detect_runtime_selection(options.get("runtime_variant", "auto"))
@@ -212,6 +302,8 @@ class InitializationManager(QObject):
                 self._save_config(
                     selected_runtime_variant=runtime_choice.variant,
                     detected_cuda_capable=runtime_choice.detected_cuda_capable,
+                    runtime_install_location_preference=runtime_location.key,
+                    resolved_runtime_dir=str(runtime_location.runtime_dir),
                     enabled_feature_set=selected_features,
                 )
 
