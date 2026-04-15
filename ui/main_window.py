@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QSlider, QProgressBar,
     QTextEdit, QGroupBox, QCheckBox, QMenuBar, QMenu,
     QFileDialog, QMessageBox, QSizePolicy, QFrame, QSpacerItem,
+    QDialog,
     QSystemTrayIcon, QApplication  # V4.0: 系统托盘图标
 )
 from PySide6.QtCore import Qt, Signal, QObject, Slot, QTimer, QPropertyAnimation, QEasingCurve, QMimeData, QThread
@@ -38,7 +39,8 @@ from ui.styles import (
 )
 from ui.custom_dialogs import StyledMessageBox
 from ui.skill_level_dialog import SkillLevelDialog, SKILL_PRESETS, get_skill_level_thresholds
-from ui.welcome_onboarding_dialog import WelcomeOnboardingDialog
+from ui.welcome_onboarding_dialog import EnvironmentRepairDialog, WelcomeOnboardingDialog
+from core.initialization_manager import InitializationManager
 
 
 # V3.9: 支持拖放的目录输入框
@@ -636,6 +638,7 @@ class SuperPickyMainWindow(QMainWindow):
         self._setup_ui()
         self._setup_birdid_dock()  # V4.0: 识鸟停靠面板
         self._show_initial_help()
+        self._init_manager = InitializationManager(self)
 
         # 连接重置信号
         # 连接重置信号
@@ -656,7 +659,10 @@ class SuperPickyMainWindow(QMainWindow):
 
         # V4.0.1: 启动时检查更新（延迟2秒，避免阻塞UI，没有更新时不弹窗）
         from advanced_config import get_advanced_config as _get_cfg_startup
-        if _get_cfg_startup().auto_check_updates:
+        # Keep the legacy startup auto-update path for full installs.
+        # Lightweight initialization owns first-run update probing and must
+        # completely skip automatic update work when the user disables it.
+        if _get_cfg_startup().auto_check_updates and self._skip_until_initialized("首次初始化尚未完成，暂不检查更新。"):
             QTimer.singleShot(2000, lambda: self._check_for_updates(silent=True))
         
         # V4.2: 启动时预加载所有模型（延迟3秒，后台加载不阻塞UI）
@@ -760,6 +766,14 @@ class SuperPickyMainWindow(QMainWindow):
         skill_level_action = QAction(self.i18n.t("skill_level.section_title") + "...", self)
         skill_level_action.triggered.connect(self._show_skill_level_dialog)
         settings_menu.addAction(skill_level_action)
+
+        update_action = QAction(self.i18n.t("menu.check_update"), self)
+        update_action.triggered.connect(self._show_update_center)
+        settings_menu.addAction(update_action)
+
+        repair_action = QAction(self.i18n.t("menu.environment_repair"), self)
+        repair_action.triggered.connect(self._show_environment_repair_dialog)
+        settings_menu.addAction(repair_action)
         
         settings_menu.addSeparator()
         
@@ -784,13 +798,6 @@ class SuperPickyMainWindow(QMainWindow):
 
         # 帮助菜单
         help_menu = menubar.addMenu(self.i18n.t("menu.help"))
-        
-        # 在线更新
-        update_action = QAction(self.i18n.t("menu.check_update"), self)
-        update_action.triggered.connect(self._show_update_center)
-        help_menu.addAction(update_action)
-        
-        help_menu.addSeparator()
         
         # 关于
         about_action = QAction(self.i18n.t("menu.about"), self)
@@ -1829,6 +1836,9 @@ class SuperPickyMainWindow(QMainWindow):
     @Slot()
     def _start_processing(self):
         """开始处理"""
+        if not self._require_initialization_for_processing():
+            return
+
         if not self.directory_path:
             StyledMessageBox.warning(
                 self,
@@ -2470,6 +2480,9 @@ class SuperPickyMainWindow(QMainWindow):
 
     def _auto_start_birdid_server(self):
         """自动启动识鸟 API 服务器（使用服务器管理器） - 在后台线程中运行"""
+        if not self._skip_until_initialized("首次初始化尚未完成，暂不启动识鸟 API 服务器。"):
+            return
+
         import threading
         
         def start_server_task():
@@ -2745,6 +2758,9 @@ class SuperPickyMainWindow(QMainWindow):
 
     def _preload_all_models(self):
         """后台预加载所有AI模型（不阻塞UI）"""
+        if not self._skip_until_initialized("首次初始化尚未完成，跳过模型预加载。"):
+            return
+
         import threading
 
         def _emit_and_log(msg, level="info"):
@@ -3064,6 +3080,12 @@ class SuperPickyMainWindow(QMainWindow):
         btn_row.addWidget(close_btn)
 
         layout.addLayout(btn_row)
+        dialog.exec()
+
+    def _show_environment_repair_dialog(self):
+        """显示环境修复对话框，复用初始化修复逻辑但不走首启欢迎页。"""
+        dialog = EnvironmentRepairDialog(self.i18n, self.config, self)
+        dialog.start_repair()
         dialog.exec()
 
     def _check_for_updates(self, silent=False):
@@ -3418,12 +3440,52 @@ class SuperPickyMainWindow(QMainWindow):
         """首次运行：显示轻量欢迎向导。"""
         # Safety guard: onboarding 只允许作为首启流程出现。
         # 如果未来旧代码路径误调用这里，非首次运行时直接跳过，避免重复打断用户。
-        if not self.config.is_first_run:
+        # NOTE:
+        # We intentionally keep this legacy entrypoint. The dialog now embeds
+        # lightweight-package initialization, while full packages can still use
+        # the same onboarding shell as a compatibility path.
+        if not self.config.is_first_run and self._initialization_ready():
             return
 
         dialog = WelcomeOnboardingDialog(self.i18n, self)
         dialog.onboarding_completed.connect(self._on_welcome_onboarding_completed)
         dialog.exec()
+
+    def _initialization_ready(self) -> bool:
+        selected_features = self.config.enabled_feature_set
+        return self._init_manager.is_ready_for_main_ui(selected_features)
+
+    def _skip_until_initialized(self, log_message: str) -> bool:
+        if self._initialization_ready():
+            return True
+        self.log_signal.emit(log_message, "info")
+        return False
+
+    def _require_initialization_for_processing(self) -> bool:
+        if self._initialization_ready():
+            return True
+        StyledMessageBox.warning(
+            self,
+            self.i18n.t("messages.hint"),
+            self.i18n.t("messages.initialization_required"),
+        )
+        self._show_first_run_skill_level_dialog()
+        return False
+
+    def _resume_post_initialization_flow(self):
+        """初始化完成后补触发被首启门禁跳过的后台流程。"""
+        if not self._initialization_ready():
+            return
+
+        self.config = get_advanced_config()
+        self._apply_skill_level_thresholds(self.config.skill_level)
+        self._update_skill_level_label(self.config.skill_level)
+
+        # 首次轻量初始化完成后，这些任务之前可能被跳过，这里补一次。
+        QTimer.singleShot(200, self._preload_all_models)
+        QTimer.singleShot(400, self._auto_start_birdid_server)
+        if self.config.auto_check_updates:
+            QTimer.singleShot(600, lambda: self._check_for_updates(silent=True))
 
     def run_startup_prompts(self):
         """在启动统计同意流程结束后继续启动期弹窗/预设应用。"""
@@ -3433,7 +3495,8 @@ class SuperPickyMainWindow(QMainWindow):
         # Centralized first-run gating: 所有首启提示都从这里统一进入。
         # 这样 telemetry / consent 完成后只会决策一次，避免 onboarding 被其他启动路径重复触发。
         self._startup_prompts_ran = True
-        if self.config.is_first_run:
+        needs_init = self._init_manager.needs_initialization(self.config.enabled_feature_set)
+        if self.config.is_first_run or needs_init:
             self._show_first_run_skill_level_dialog()
         else:
             # 非首次运行不再进入 onboarding，只恢复上次保存的摄影等级阈值。
@@ -3461,10 +3524,12 @@ class SuperPickyMainWindow(QMainWindow):
         self.config.set_skill_level(level_key)
         self.config.set_auto_check_updates(auto_update_enabled)
         self.config.set_is_first_run(False)
+        self.config.set_initialization_completed(self._initialization_ready())
         self.config.save()
 
         self._apply_skill_level_thresholds(level_key)
         self._update_skill_level_label(level_key)
+        self._resume_post_initialization_flow()
 
         print(
             f"[onboarding] first-run setup saved: "
