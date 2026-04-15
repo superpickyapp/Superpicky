@@ -21,6 +21,7 @@ from PySide6.QtGui import QFont
 
 from ui.styles import COLORS, FONTS
 from tools.i18n import get_i18n
+from config import get_birdname_settings_path
 
 
 def get_birdname_db_path() -> str:
@@ -44,11 +45,7 @@ def get_birdname_db_path() -> str:
 
 def get_birdname_ini_path() -> str:
     """获取 ioc 目录下的 ini 配置文件路径（用户设置，保留在用户可写目录）"""
-    # 将持久化配置存储在用户的主目录 .superpicky/ 下，避免 macOS App 内沙盒只读权限问题
-    user_home = os.path.expanduser('~')
-    app_data_dir = os.path.join(user_home, '.superpicky', 'ioc')
-    os.makedirs(app_data_dir, exist_ok=True)
-    return os.path.join(app_data_dir, 'birdname_settings.ini')
+    return str(get_birdname_settings_path())
 
 
 def load_last_version() -> Optional[str]:

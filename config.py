@@ -144,6 +144,19 @@ def get_birdid_settings_path(app_name: str = 'SuperPicky') -> Path:
     return get_app_data_dir(app_name) / 'birdid_dock_settings.json'
 
 
+def get_birdname_settings_path(app_name: str = 'SuperPicky') -> Path:
+    """
+    返回 BirdName IOC 设置文件路径。
+    Return the BirdName IOC settings file path.
+
+    该文件属于全局用户配置，应统一收敛到标准配置目录下的 ioc/ 子目录。
+    This file belongs to global user configuration and should live under the standard config directory's ioc/ subdirectory.
+    """
+    settings_dir = get_app_config_dir(app_name) / 'ioc'
+    settings_dir.mkdir(parents=True, exist_ok=True)
+    return settings_dir / 'birdname_settings.ini'
+
+
 # =========================
 # 可覆盖配置（ENV + 配置文件）
 # =========================
@@ -762,6 +775,56 @@ def migrate_old_data() -> bool:
 
     except Exception as e:
         print(f"数据迁移失败: {e}")
+        return False
+
+
+def migrate_legacy_ioc_settings(app_name: str = 'SuperPicky') -> bool:
+    """
+    迁移旧的用户主目录 IOC 设置到标准配置目录。
+    Migrate legacy IOC settings from the user home directory to the standard config directory.
+
+    仅处理 ~/.superpicky/ioc/birdname_settings.ini 这类全局配置残留，
+    不涉及照片目录中的 .superpicky 工作文件。
+    """
+    try:
+        import shutil
+
+        old_settings_path = Path.home() / '.superpicky' / 'ioc' / 'birdname_settings.ini'
+        new_settings_path = get_birdname_settings_path(app_name)
+
+        if not old_settings_path.exists() or not old_settings_path.is_file():
+            return True
+
+        if new_settings_path.exists():
+            print(f"检测到新的 IOC 配置已存在，保留新路径: {new_settings_path}")
+            return True
+
+        shutil.copy2(old_settings_path, new_settings_path)
+        print(f"已迁移 IOC 配置: {old_settings_path} -> {new_settings_path}")
+
+        try:
+            old_settings_path.unlink()
+        except Exception as e:
+            print(f"删除旧 IOC 配置失败: {e}")
+            return True
+
+        old_ioc_dir = old_settings_path.parent
+        old_superpicky_dir = old_ioc_dir.parent
+        try:
+            if old_ioc_dir.exists() and old_ioc_dir.is_dir() and not any(old_ioc_dir.iterdir()):
+                old_ioc_dir.rmdir()
+            if (
+                old_superpicky_dir.exists()
+                and old_superpicky_dir.is_dir()
+                and not any(old_superpicky_dir.iterdir())
+            ):
+                old_superpicky_dir.rmdir()
+        except Exception as e:
+            print(f"清理旧 IOC 目录失败: {e}")
+
+        return True
+    except Exception as e:
+        print(f"IOC 配置迁移失败: {e}")
         return False
 
 

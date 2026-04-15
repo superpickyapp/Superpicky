@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt, QObject, QTimer, Signal, QEasingCurve
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -226,28 +227,23 @@ class SelectableCard(QFrame):
         super().mousePressEvent(event)
 
 
-class ModelInfoCard(QFrame):
-    def __init__(self, title: str, description: str, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {COLORS['bg_elevated']};
-                border: 1px solid {COLORS['border']};
-                border-radius: 8px;
-            }}
-        """)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(6)
+class LockedFeatureCheckBox(QCheckBox):
+    def __init__(self, text: str, parent=None):
+        super().__init__(text, parent)
+        self.setChecked(True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        title_label = QLabel(title)
-        title_label.setStyleSheet(f"color: {COLORS['text_primary']}; font-size: 14px; font-weight: 600;")
-        layout.addWidget(title_label)
+    def nextCheckState(self) -> None:
+        return
 
-        desc_label = QLabel(description)
-        desc_label.setWordWrap(True)
-        desc_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px;")
-        layout.addWidget(desc_label)
+    def mousePressEvent(self, event) -> None:
+        event.accept()
+
+    def mouseReleaseEvent(self, event) -> None:
+        event.accept()
+
+    def keyPressEvent(self, event) -> None:
+        event.accept()
 
 
 class RoundedProgressBar(QWidget):
@@ -550,6 +546,7 @@ class WelcomeOnboardingDialog(QDialog):
         self._dots: list[QLabel] = []
         self._skill_cards: dict[str, SkillLevelCard] = {}
         self._update_cards: dict[str, SelectableCard] = {}
+        self._feature_boxes: dict[str, LockedFeatureCheckBox] = {}
         self._runtime_location_cards: dict[str, SelectableCard] = {}
         self._initialization_complete = False
         self._background_mode = False
@@ -632,6 +629,8 @@ class WelcomeOnboardingDialog(QDialog):
     def _nav_state_for_page(self, page_index: int) -> _NavState:
         is_init_page = self._is_initialization_page(page_index)
         if self._initialization_complete and is_init_page:
+            next_text = self.i18n.t("onboarding.finish")
+        elif self._is_preparation_page(page_index) and self._preparation_can_finish():
             next_text = self.i18n.t("onboarding.finish")
         elif self._is_preparation_page(page_index):
             next_text = self.i18n.t("onboarding.start_initialization")
@@ -753,40 +752,40 @@ class WelcomeOnboardingDialog(QDialog):
 
     def _build_feature_page(self) -> QWidget:
         page, layout = self._create_page_widget()
+        runtime_ready = self.initialization_manager.check_runtime_health()
         layout.addWidget(self._create_text_label(self.i18n.t("onboarding.features_title"), PAGE_TITLE_STYLE))
         layout.addWidget(self._create_text_label(self.i18n.t("onboarding.features_subtitle"), BODY_SUBTITLE_STYLE))
         for feature_key in FULL_FEATURE_SET:
-            layout.addWidget(
-                ModelInfoCard(
-                    self.i18n.t(f"onboarding.model_{feature_key}_title"),
-                    self.i18n.t(f"onboarding.model_{feature_key}_desc"),
+            checkbox = LockedFeatureCheckBox(self.i18n.t(f"onboarding.feature_{feature_key}_label"))
+            self._feature_boxes[feature_key] = checkbox
+            layout.addWidget(checkbox)
+        if not runtime_ready:
+            layout.addSpacing(4)
+            layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_title"), PAGE_TITLE_STYLE))
+            layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_subtitle"), BODY_SUBTITLE_STYLE))
+            cards = []
+            for option in self.initialization_manager.get_runtime_install_location_options():
+                if not option.writable:
+                    continue
+                card = SelectableCard(
+                    option.key,
+                    self.i18n.t(f"onboarding.install_location_{option.key}_title"),
+                    self.i18n.t(f"onboarding.install_location_{option.key}_desc"),
                 )
+                card.clicked.connect(self._on_runtime_install_location_clicked)
+                self._runtime_location_cards[option.key] = card
+                cards.append(card)
+            if cards:
+                layout.addLayout(self._create_card_row(cards))
+            resolved_runtime_dir = self.initialization_manager.resolve_runtime_dir(self.selected_runtime_install_location)
+            self.install_location_path_label = self._create_text_label(
+                self.i18n.t("onboarding.install_location_path", path=str(resolved_runtime_dir)),
+                HINT_STYLE,
             )
-        layout.addSpacing(4)
-        layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_title"), PAGE_TITLE_STYLE))
-        layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_subtitle"), BODY_SUBTITLE_STYLE))
-        cards = []
-        for option in self.initialization_manager.get_runtime_install_location_options():
-            if not option.writable:
-                continue
-            card = SelectableCard(
-                option.key,
-                self.i18n.t(f"onboarding.install_location_{option.key}_title"),
-                self.i18n.t(f"onboarding.install_location_{option.key}_desc"),
-            )
-            card.clicked.connect(self._on_runtime_install_location_clicked)
-            self._runtime_location_cards[option.key] = card
-            cards.append(card)
-        if cards:
-            layout.addLayout(self._create_card_row(cards))
-        resolved_runtime_dir = self.initialization_manager.resolve_runtime_dir(self.selected_runtime_install_location)
-        self.install_location_path_label = self._create_text_label(
-            self.i18n.t("onboarding.install_location_path", path=str(resolved_runtime_dir)),
-            HINT_STYLE,
-        )
-        layout.addWidget(self.install_location_path_label)
-        layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_hint"), HINT_STYLE))
-        layout.addWidget(self._create_text_label(self._runtime_hint_text(), HINT_STYLE))
+            layout.addWidget(self.install_location_path_label)
+            layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_hint"), HINT_STYLE))
+        self.runtime_status_label = self._create_text_label(self._runtime_hint_text(), HINT_STYLE)
+        layout.addWidget(self.runtime_status_label)
         layout.addStretch()
         return page
 
@@ -806,6 +805,8 @@ class WelcomeOnboardingDialog(QDialog):
         return page
 
     def _runtime_hint_text(self) -> str:
+        if self.initialization_manager.check_runtime_health():
+            return self.i18n.t("onboarding.runtime_check_passed")
         runtime_selection = self.initialization_manager.detect_runtime_selection(
             self.config.selected_runtime_variant or "auto"
         )
@@ -848,6 +849,12 @@ class WelcomeOnboardingDialog(QDialog):
             self.install_location_path_label.setText(
                 self.i18n.t("onboarding.install_location_path", path=str(resolved_runtime_dir))
             )
+        if hasattr(self, "runtime_status_label"):
+            self.runtime_status_label.setText(self._runtime_hint_text())
+        self._refresh_nav_state()
+
+    def _preparation_can_finish(self) -> bool:
+        return not self.initialization_manager.needs_initialization(FULL_FEATURE_SET)
 
     def _set_current_page(self, page_index: int, *, force: bool = False):
         if not 0 <= page_index < self._page_count():
@@ -891,6 +898,9 @@ class WelcomeOnboardingDialog(QDialog):
                 self._complete_onboarding()
             return
         if self._is_preparation_page(self.current_page):
+            if self._preparation_can_finish():
+                self._complete_onboarding()
+                return
             self._start_initialization()
             return
         self._set_current_page(self.current_page + 1)

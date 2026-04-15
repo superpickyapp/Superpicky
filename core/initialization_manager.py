@@ -156,10 +156,15 @@ class InitializationManager(QObject):
         except Exception:
             return None
 
+    def _writable_probe_dir(self, path: Path) -> Path:
+        probe_root = path if path.exists() else path.parent
+        probe_dir = self._existing_probe_path(probe_root)
+        return probe_dir if probe_dir.is_dir() else probe_dir.parent
+
     def _is_runtime_dir_writable(self, path: Path) -> bool:
         try:
-            path.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(dir=path, delete=True):
+            probe_dir = self._writable_probe_dir(path)
+            with tempfile.TemporaryDirectory(dir=probe_dir, prefix="sp_runtime_probe_"):
                 pass
             return True
         except Exception:
