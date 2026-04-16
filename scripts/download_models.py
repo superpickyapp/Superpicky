@@ -1,9 +1,12 @@
 import hashlib
+import importlib
 import logging
 import os
+import random
 import sys
+import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Iterator, Optional, cast
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, cast
 
 
 def _reconfigure_text_stream(stream: object) -> None:
@@ -15,6 +18,13 @@ def _reconfigure_text_stream(stream: object) -> None:
 
 _reconfigure_text_stream(sys.stdout)
 _reconfigure_text_stream(sys.stderr)
+
+HF_MIRROR_ENDPOINT = "https://hf-mirror.com"
+HF_OFFICIAL_ENDPOINT = "https://huggingface.co"
+os.environ["HF_ENDPOINT"] = HF_MIRROR_ENDPOINT
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+os.environ["HF_HUB_DISABLE_XET"] = "1"
+os.environ["DO_NOT_TRACK"] = "1"
 
 try:
     from huggingface_hub import hf_hub_download
@@ -33,16 +43,11 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 
-HF_MIRROR_ENDPOINT = "https://hf-mirror.com"
-HF_OFFICIAL_ENDPOINT = "https://huggingface.co"
 DOWNLOAD_ENDPOINTS = [
     ("hf-mirror", HF_MIRROR_ENDPOINT),
     ("official", HF_OFFICIAL_ENDPOINT),
 ]
 
-# NOTE:
-# The old MODELS_TO_DOWNLOAD entrypoint is intentionally kept for CLI compatibility.
-# New initialization code uses the richer resource metadata and filtering helpers below.
 MODELS_TO_DOWNLOAD = [
     {
         "resource_id": "classification_model",
@@ -50,6 +55,7 @@ MODELS_TO_DOWNLOAD = [
         "repo_id": "jamesphotography/SuperPicky-models",
         "filename": "model20240824.pth",
         "dest_dir": "models",
+        "packaged_dest_dir": "models",
         "feature_tags": ["core_detection", "birdid"],
         "required": True,
         "sha256": None,
@@ -60,6 +66,7 @@ MODELS_TO_DOWNLOAD = [
         "repo_id": "jamesphotography/SuperPicky-models",
         "filename": "superFlier_efficientnet.pth",
         "dest_dir": "models",
+        "packaged_dest_dir": "models",
         "feature_tags": ["flight"],
         "required": False,
         "sha256": None,
@@ -70,6 +77,7 @@ MODELS_TO_DOWNLOAD = [
         "repo_id": "jamesphotography/SuperPicky-models",
         "filename": "cub200_keypoint_resnet50_slim.pth",
         "dest_dir": "models",
+        "packaged_dest_dir": "models",
         "feature_tags": ["keypoint"],
         "required": False,
         "sha256": None,
@@ -90,6 +98,7 @@ MODELS_TO_DOWNLOAD = [
         "repo_id": "chaofengc/IQA-PyTorch-Weights",
         "filename": "cfanet_iaa_ava_res50-3cd62bb3.pth",
         "dest_dir": "models",
+        "packaged_dest_dir": "models",
         "feature_tags": ["quality"],
         "required": False,
         "sha256": None,
@@ -100,6 +109,7 @@ MODELS_TO_DOWNLOAD = [
         "repo_id": "jamesphotography/SuperPicky-models",
         "filename": "yolo11l-seg.pt",
         "dest_dir": "models",
+        "packaged_dest_dir": "models",
         "feature_tags": ["core_detection"],
         "required": True,
         "sha256": None,
@@ -158,24 +168,23 @@ def verify_resource(resource: Dict[str, Any], file_path: Path) -> bool:
     return file_path.exists() and _sha256_file(file_path) == expected_sha256.lower()
 
 
-def _resolve_hf_endpoints() -> list[tuple[str, str]]:
+def _resolve_hf_endpoints() -> List[Tuple[str, str]]:
     if probe_sources is None or pick_best_source is None:
         return list(DOWNLOAD_ENDPOINTS)
 
     probe_input = [{"name": name, "url": endpoint} for name, endpoint in DOWNLOAD_ENDPOINTS]
     results = probe_sources("huggingface-models", probe_input)
-    best = pick_best_source(results)
-    if best is None:
+    successful = [item for item in results if item.ok]
+    if not successful:
         return list(DOWNLOAD_ENDPOINTS)
 
-    ordered = []
-    ordered.append((best.name, best.url))
-    ordered.extend(
-        (name, endpoint)
-        for name, endpoint in DOWNLOAD_ENDPOINTS
-        if endpoint != best.url
-    )
-    return ordered
+    non_official = [item for item in successful if "official" not in item.name.lower()]
+    preferred = non_official or successful
+    ordered_results = sorted(preferred, key=lambda item: (item.total_ms, item.first_byte_ms))
+    if non_official:
+        return [(item.name, item.url) for item in ordered_results]
+
+    return [(item.name, item.url) for item in ordered_results]
 
 
 def _resource_matches_selection(resource: Dict[str, Any], selected: set[str]) -> bool:
@@ -199,7 +208,7 @@ def resolve_download_plan(
     selected_features: Optional[Iterable[str]] = None,
     *,
     include_optional_local: bool = True,
-) -> list[Dict[str, Any]]:
+) -> List[Dict[str, Any]]:
     plan = list(_iter_selected_resources(MODELS_TO_DOWNLOAD, selected_features))
     if include_optional_local:
         plan.extend(_iter_selected_resources(OPTIONAL_LOCAL_RESOURCES, selected_features))
@@ -221,13 +230,20 @@ def _emit_resource_progress(
         progress_cb(resource, percent, message)
 
 
+def resolve_resource_destination_dir(project_root: Path, resource: Dict[str, Any]) -> Path:
+    dest_dir = resource["dest_dir"]
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        dest_dir = resource.get("packaged_dest_dir", dest_dir)
+    return project_root / dest_dir
+
+
 def _copy_local_resource(
     resource: Dict[str, Any],
     project_root: Path,
     progress_cb: Optional[Callable[[Dict[str, Any], float, str], None]] = None,
 ) -> Optional[Path]:
     filename = resource["filename"]
-    dest_dir = project_root / resource["dest_dir"]
+    dest_dir = resolve_resource_destination_dir(project_root, resource)
     dest_dir.mkdir(parents=True, exist_ok=True)
     destination = dest_dir / filename
 
@@ -236,7 +252,7 @@ def _copy_local_resource(
         return destination
 
     local_candidates = [
-        project_root / resource["dest_dir"] / filename,
+        resolve_resource_destination_dir(project_root, resource) / filename,
         project_root / "resources" / resource["dest_dir"] / filename,
     ]
     for candidate in local_candidates:
@@ -255,6 +271,20 @@ def _download_with_fallback(
     *,
     progress_cb: Optional[Callable[[str, float, str], None]] = None,
 ) -> Optional[str]:
+    """
+    使用回退机制下载文件，支持重试和源切换。
+
+    Download file with fallback mechanism, supporting retry and source switching.
+
+    参数 Parameters:
+        repo_id (str): Hugging Face 仓库 ID
+        filename (str): 要下载的文件名
+        full_dest_dir (str): 目标目录路径
+        progress_cb (Optional[Callable[[str, float, str], None]]): 进度回调函数
+
+    返回 Returns:
+        Optional[str]: 下载的文件路径，失败时返回 None
+    """
     global hf_hub_download
     if hf_hub_download is None:
         try:
@@ -263,48 +293,123 @@ def _download_with_fallback(
             hf_hub_download = _hf_hub_download
         except Exception as exc:
             raise RuntimeError(f"huggingface_hub is not installed yet: {exc}") from exc
+    
     errors = []
     endpoints = _resolve_hf_endpoints()
+    max_retries = 3  # 每个源的最大重试次数
 
     for index, (source_name, endpoint) in enumerate(endpoints):
-        logging.info("Attempting %s via %s (%s)", filename, source_name, endpoint)
-        if progress_cb:
-            progress_cb(source_name, 5.0 + (index * 10.0), f"{filename}: connecting {source_name}")
-        try:
-            download_kwargs: dict[str, Any] = {
-                "repo_id": repo_id,
-                "filename": filename,
-                "local_dir": full_dest_dir,
-                "local_dir_use_symlinks": False,
-                "endpoint": endpoint,
-            }
-            # Keep old CLI-compatible behavior while allowing newer hub versions to resume.
+        logging.info("尝试从 %s (%s) 下载 %s", source_name, endpoint, filename)
+        
+        for retry_count in range(max_retries):
+            if progress_cb:
+                progress_cb(source_name, 5.0 + (index * 10.0), f"{filename}: 连接 {source_name} (尝试 {retry_count + 1}/{max_retries})")
+            
+            start_time = time.perf_counter()
             try:
-                download_kwargs["resume_download"] = True
-            except Exception:
-                pass
-            downloaded_path = cast(Any, hf_hub_download)(**download_kwargs)
-            if progress_cb:
-                progress_cb(source_name, 100.0, f"{filename}: ready via {source_name}")
-            logging.info("%s is ready via %s.", filename, source_name)
-            return downloaded_path
-        except Exception as exc:
-            error_text = _format_download_error(exc)
-            errors.append(f"{source_name}: {error_text}")
-            logging.warning("%s failed via %s: %s", filename, source_name, error_text)
-            if progress_cb:
-                progress_cb(source_name, 0.0, f"{filename}: {source_name} failed, trying fallback")
-            if index < len(endpoints) - 1:
-                next_source_name = endpoints[index + 1][0]
-                logging.info("Falling back to %s for %s...", next_source_name, filename)
+                _configure_hf_client_for_endpoint(endpoint)
+                download_kwargs: Dict[str, Any] = {
+                    "repo_id": repo_id,
+                    "filename": filename,
+                    "local_dir": full_dest_dir,
+                    "local_dir_use_symlinks": False,
+                    "endpoint": endpoint,
+                }
+                try:
+                    download_kwargs["resume_download"] = True
+                except Exception:
+                    pass
+
+                downloaded_path = cast(Any, hf_hub_download)(**download_kwargs)
+                elapsed_time = time.perf_counter() - start_time
+                
+                if progress_cb:
+                    progress_cb(source_name, 100.0, f"{filename}: 通过 {source_name} 下载完成")
+                
+                logging.info(
+                    "%s 已通过 %s 下载完成，耗时 %.2f 秒",
+                    filename,
+                    source_name,
+                    elapsed_time
+                )
+                return downloaded_path
+                
+            except Exception as exc:
+                elapsed_time = time.perf_counter() - start_time
+                error_text = _format_download_error(exc)
+                errors.append(f"{source_name} (尝试 {retry_count + 1}): {error_text}")
+                
+                logging.warning(
+                    "%s 通过 %s 下载失败 (尝试 %d/%d): %s (耗时 %.2f 秒)",
+                    filename,
+                    source_name,
+                    retry_count + 1,
+                    max_retries,
+                    error_text,
+                    elapsed_time
+                )
+                
+                if progress_cb:
+                    progress_cb(source_name, 0.0, f"{filename}: {source_name} 失败 (尝试 {retry_count + 1}/{max_retries})")
+
+                if retry_count < max_retries - 1:
+                    base_delay = 2 ** retry_count
+                    jitter = base_delay * 0.25 * (random.random() * 2 - 1)
+                    delay = max(0.5, base_delay + jitter)
+                    logging.info("等待 %.2f 秒后重试...", delay)
+                    time.sleep(delay)
+                else:
+                    if index < len(endpoints) - 1:
+                        next_source_name = endpoints[index + 1][0]
+                        logging.info("(" + next_source_name + ") 切换到下一个源下载 %s...", filename)
 
     logging.error(
-        "All download sources failed for %s from %s. Details: %s",
+        "所有下载源均失败: %s 来自 %s。详细信息: %s",
         filename,
         repo_id,
         " | ".join(errors),
     )
     return None
+
+
+def _configure_hf_client_for_endpoint(endpoint: str) -> None:
+    """
+    强制 huggingface_hub 在当前尝试中保持选定的端点。
+
+    官方文档说明 `HF_ENDPOINT` 会在导入时读取，因此这里同时设置环境变量与运行期常量，
+    避免中国网络下已经导入过的客户端偷偷回退到默认官方端点。
+
+    Force huggingface_hub to stay on the selected endpoint for the current attempt.
+
+    The official documentation states that `HF_ENDPOINT` is read during import,
+    so we set both environment variables and runtime constants here to prevent
+    the already-imported client from silently falling back to the default official endpoint
+    under Chinese network conditions.
+
+    参数 Parameters:
+        endpoint (str): 要使用的 Hugging Face 端点 URL
+                      The Hugging Face endpoint URL to use
+    """
+    os.environ["HF_ENDPOINT"] = endpoint
+    os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+    os.environ["HF_HUB_DISABLE_XET"] = "1"
+    os.environ["DO_NOT_TRACK"] = "1"
+
+    try:
+        constants_module = importlib.import_module("huggingface_hub.constants")
+        if hasattr(constants_module, "ENDPOINT"):
+            constants_module.ENDPOINT = endpoint
+            logging.debug("已设置 huggingface_hub.constants.ENDPOINT = %s", endpoint)
+    except Exception as exc:
+        logging.debug("设置 huggingface_hub.constants.ENDPOINT 失败: %s", exc)
+
+    try:
+        file_download_module = importlib.import_module("huggingface_hub.file_download")
+        if hasattr(file_download_module, "ENDPOINT"):
+            file_download_module.ENDPOINT = endpoint
+            logging.debug("已设置 huggingface_hub.file_download.ENDPOINT = %s", endpoint)
+    except Exception as exc:
+        logging.debug("设置 huggingface_hub.file_download.ENDPOINT 失败: %s", exc)
 
 
 def download_resource(
@@ -313,6 +418,23 @@ def download_resource(
     project_root: Optional[Path] = None,
     progress_cb: Optional[Callable[[Dict[str, Any], float, str], None]] = None,
 ) -> Path:
+    """
+    下载并验证资源文件。
+
+    Download and verify resource file.
+
+    参数 Parameters:
+        resource (Dict[str, Any]): 资源元数据字典
+        project_root (Optional[Path]): 项目根目录
+        progress_cb (Optional[Callable[[Dict[str, Any], float, str], None]]): 进度回调函数
+
+    返回 Returns:
+        Path: 下载的文件路径
+
+    异常 Raises:
+        FileNotFoundError: 本地回退资源未找到
+        RuntimeError: 下载失败或完整性验证失败
+    """
     project_root = project_root or get_project_root()
 
     if resource.get("copy_only"):
@@ -323,11 +445,19 @@ def download_resource(
 
     repo_id = resource["repo_id"]
     filename = resource["filename"]
-    full_dest_dir = project_root / resource["dest_dir"]
+    resource_id = resource.get("resource_id", "unknown")
+    full_dest_dir = resolve_resource_destination_dir(project_root, resource)
     full_dest_dir.mkdir(parents=True, exist_ok=True)
 
-    _emit_resource_progress(progress_cb, resource, 0.0, f"Preparing {filename}")
+    logging.info(
+        "开始下载资源 [%s]: %s 来自仓库 %s",
+        resource_id,
+        filename,
+        repo_id
+    )
+    _emit_resource_progress(progress_cb, resource, 0.0, f"准备下载 {filename}")
 
+    download_start_time = time.perf_counter()
     downloaded_path = _download_with_fallback(
         repo_id=repo_id,
         filename=filename,
@@ -337,15 +467,45 @@ def download_resource(
             if progress_cb else None
         ),
     )
+    download_elapsed = time.perf_counter() - download_start_time
+    
     if not downloaded_path:
+        logging.error(
+            "资源 [%s] 下载失败: %s 来自 %s，总耗时 %.2f 秒",
+            resource_id,
+            filename,
+            repo_id,
+            download_elapsed
+        )
         raise RuntimeError(f"Failed to download {filename} from {repo_id}")
 
     path_obj = Path(downloaded_path)
+    file_size = path_obj.stat().st_size if path_obj.exists() else 0
+    
+    logging.info(
+        "资源 [%s] 下载文件大小: %d 字节 (%.2f MB)",
+        resource_id,
+        file_size,
+        file_size / (1024 * 1024)
+    )
+    
     if not verify_resource(resource, path_obj):
         path_obj.unlink(missing_ok=True)
+        logging.error(
+            "资源 [%s] 完整性验证失败: %s",
+            resource_id,
+            filename
+        )
         raise RuntimeError(f"Integrity verification failed for {filename}")
 
-    _emit_resource_progress(progress_cb, resource, 100.0, f"Verified {filename}")
+    logging.info(
+        "资源 [%s] 下载并验证成功: %s，总耗时 %.2f 秒，文件大小 %.2f MB",
+        resource_id,
+        filename,
+        download_elapsed,
+        file_size / (1024 * 1024)
+    )
+    _emit_resource_progress(progress_cb, resource, 100.0, f"已验证 {filename}")
     return path_obj
 
 
@@ -363,9 +523,6 @@ def main():
     os.chdir(project_root)
     logging.info("Working directory set to: %s", project_root)
 
-    # NOTE:
-    # The old CLI behavior is intentionally preserved here as a compatibility fallback.
-    # The new onboarding/initialization flow now uses resolve_download_plan() directly.
     plan = resolve_download_plan(
         {"core_detection", "quality", "keypoint", "flight", "birdid"},
         include_optional_local=False,

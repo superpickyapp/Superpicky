@@ -1,9 +1,0 @@
-# Runtime dependencies for the lightweight package macOS initialization flow.
-
--r requirements_base.txt
-
-torch==2.8.0
-torchvision
-torchaudio
-lap
-huggingface_hub

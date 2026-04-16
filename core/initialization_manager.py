@@ -5,18 +5,25 @@ First-run initialization manager for lightweight builds.
 The old first-run onboarding path is intentionally preserved elsewhere for
 full-package compatibility. This manager only takes over when runtime or
 required resources are missing.
+
+轻量级构建的首次运行初始化管理器。
+
+旧的首次运行引导路径在其他地方保留，以实现完整包兼容性。
+此管理器仅在运行时或所需资源缺失时接管。
 """
 
 from __future__ import annotations
 
 import importlib
 import importlib.util
+import logging
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Optional
@@ -24,9 +31,21 @@ from typing import Dict, Iterable, Optional
 from PySide6.QtCore import QObject, Signal
 
 from advanced_config import get_advanced_config
-from config import get_app_config_dir
+from config import (
+    get_app_config_dir,
+    get_app_install_dir,
+    get_app_internal_dir,
+    get_bundled_resource_dir,
+)
+from core.runtime_requirements import get_runtime_requirements
 from core.source_probe import pick_best_source, probe_sources
-from scripts.download_models import download_resource, resolve_download_plan
+from scripts.download_models import (
+    download_resource,
+    resolve_download_plan,
+    resolve_resource_destination_dir,
+)
+
+logging.basicConfig(level=logging.INFO)
 
 
 PIPY_SOURCES = [
@@ -89,14 +108,87 @@ class InitializationManager(QObject):
     finished = Signal(bool, object)
 
     def __init__(self, parent=None):
+        """
+        初始化初始化管理器。
+
+        Initialize the initialization manager.
+
+        参数 Parameters:
+            parent: 父 QObject 对象
+        """
         super().__init__(parent)
         self.config = get_advanced_config()
         self._thread: Optional[threading.Thread] = None
         self._last_options: Optional[dict] = None
         self._last_mode: str = "init"
-        self._project_root = Path(__file__).resolve().parent.parent
-        self._runtime_dir = self.resolve_runtime_dir(self.config.runtime_install_location_preference)
+        self._project_root = self._resolve_project_root()
+        self._runtime_dir = self.resolve_runtime_dir(
+            self.config.runtime_install_location_preference
+        )
         self._source_map: Dict[str, str] = {}
+
+        self._ensure_hf_endpoint_configured()
+        logging.info("初始化管理器已创建，项目根目录: %s", self._project_root)
+
+    def _resolve_project_root(self) -> Path:
+        """
+        解析项目根目录。
+
+        Resolve project root directory.
+
+        返回 Returns:
+            Path: 项目根目录路径
+        """
+        if getattr(sys, "frozen", False) and sys.platform == "win32":
+            return get_app_internal_dir()
+        return Path(__file__).resolve().parent.parent
+
+    def _ensure_hf_endpoint_configured(self) -> None:
+        """
+        确保 Hugging Face 端点环境变量已正确设置。
+
+        Ensure Hugging Face endpoint environment variables are properly configured.
+        """
+        hf_mirror_endpoint = "https://hf-mirror.com"
+
+        if (
+            "HF_ENDPOINT" not in os.environ
+            or os.environ["HF_ENDPOINT"] != hf_mirror_endpoint
+        ):
+            os.environ["HF_ENDPOINT"] = hf_mirror_endpoint
+            logging.info("已设置 HF_ENDPOINT = %s", hf_mirror_endpoint)
+
+        env_vars = {
+            "HF_HUB_DISABLE_TELEMETRY": "1",
+            "HF_HUB_DISABLE_XET": "1",
+            "DO_NOT_TRACK": "1",
+        }
+
+        for key, value in env_vars.items():
+            if key not in os.environ or os.environ[key] != value:
+                os.environ[key] = value
+                logging.debug("已设置 %s = %s", key, value)
+
+    def _resolve_runtime_requirements_path(self, runtime_variant: str) -> Path:
+        """Resolve runtime requirements file path for backward compatibility."""
+        requirements = get_runtime_requirements(runtime_variant)
+        requirements_content = requirements.to_requirements_string()
+
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".txt",
+            prefix=f"requirements_{runtime_variant}_",
+            delete=False,
+            encoding="utf-8",
+        )
+        try:
+            temp_file.write(requirements_content)
+            temp_file.close()
+            return Path(temp_file.name)
+        except Exception:
+            temp_file.close()
+            Path(temp_file.name).unlink(missing_ok=True)
+            raise
 
     @staticmethod
     def _normalize_features(selected_features: Optional[Iterable[str]]) -> list[str]:
@@ -137,10 +229,16 @@ class InitializationManager(QObject):
         return self._project_root
 
     def _runtime_install_locations(self) -> dict[str, Path]:
+        install_runtime_dir = self._installation_root() / "runtime_env"
+        if self._requires_install_local_runtime():
+            install_runtime_dir = get_app_internal_dir() / "runtime_env"
         return {
             "default": get_app_config_dir() / "runtime_env",
-            "install": self._installation_root() / "runtime_env",
+            "install": install_runtime_dir,
         }
+
+    def _requires_install_local_runtime(self) -> bool:
+        return getattr(sys, "frozen", False) and sys.platform == "win32"
 
     @staticmethod
     def _existing_probe_path(path: Path) -> Path:
@@ -171,6 +269,17 @@ class InitializationManager(QObject):
             return False
 
     def get_runtime_install_location_options(self) -> list[RuntimeInstallLocation]:
+        if self._requires_install_local_runtime():
+            install_dir = self._runtime_install_locations()["install"]
+            return [
+                RuntimeInstallLocation(
+                    key="install",
+                    runtime_dir=install_dir,
+                    free_bytes=self._free_bytes_for_path(install_dir),
+                    writable=self._is_runtime_dir_writable(install_dir),
+                )
+            ]
+
         options = []
         for key, runtime_dir in self._runtime_install_locations().items():
             options.append(
@@ -183,8 +292,23 @@ class InitializationManager(QObject):
             )
         return options
 
-    def choose_runtime_install_location(self, preferred_key: Optional[str] = None) -> RuntimeInstallLocation:
-        options = [item for item in self.get_runtime_install_location_options() if item.writable]
+    def choose_runtime_install_location(
+        self, preferred_key: Optional[str] = None
+    ) -> RuntimeInstallLocation:
+        if self._requires_install_local_runtime():
+            install_dir = self._runtime_install_locations()["install"]
+            return RuntimeInstallLocation(
+                "install",
+                install_dir,
+                self._free_bytes_for_path(install_dir),
+                self._is_runtime_dir_writable(install_dir),
+            )
+
+        options = [
+            item
+            for item in self.get_runtime_install_location_options()
+            if item.writable
+        ]
         if not options:
             default_dir = self._runtime_install_locations()["default"]
             return RuntimeInstallLocation("default", default_dir, None, True)
@@ -195,7 +319,10 @@ class InitializationManager(QObject):
 
         comparable = [item for item in options if item.free_bytes is not None]
         if comparable:
-            return max(comparable, key=lambda item: (item.free_bytes or -1, item.key == "default"))
+            return max(
+                comparable,
+                key=lambda item: (item.free_bytes or -1, item.key == "default"),
+            )
         return by_key.get("default", options[0])
 
     def resolve_runtime_dir(self, preferred_key: Optional[str] = None) -> Path:
@@ -203,15 +330,22 @@ class InitializationManager(QObject):
 
     def start(self, options: dict, mode: str = "init") -> None:
         normalized_options = dict(options)
-        normalized_options["features"] = self._normalize_features(normalized_options.get("features"))
-        normalized_options["runtime_install_location"] = self.choose_runtime_install_location(
-            normalized_options.get("runtime_install_location") or self.config.runtime_install_location_preference
-        ).key
+        normalized_options["features"] = self._normalize_features(
+            normalized_options.get("features")
+        )
+        normalized_options["runtime_install_location"] = (
+            self.choose_runtime_install_location(
+                normalized_options.get("runtime_install_location")
+                or self.config.runtime_install_location_preference
+            ).key
+        )
         self._last_options = normalized_options
         self._last_mode = mode
         if self._thread and self._thread.is_alive():
             return
-        self._thread = threading.Thread(target=self._run, args=(dict(normalized_options), mode), daemon=True)
+        self._thread = threading.Thread(
+            target=self._run, args=(dict(normalized_options), mode), daemon=True
+        )
         self._thread.start()
 
     def start_initialization(self, options: dict) -> None:
@@ -228,50 +362,155 @@ class InitializationManager(QObject):
         if self._last_options is not None:
             self.start(self._last_options, mode=self._last_mode)
 
-    def is_ready_for_main_ui(self, selected_features: Optional[Iterable[str]] = None) -> bool:
-        return self._has_runtime_available() and self._resources_available(selected_features)
+    def is_ready_for_main_ui(
+        self, selected_features: Optional[Iterable[str]] = None
+    ) -> bool:
+        return self._has_runtime_available() and self._resources_available(
+            selected_features
+        )
 
-    def needs_initialization(self, selected_features: Optional[Iterable[str]] = None) -> bool:
-        # Compatibility note:
-        # We do not force initialization only because the config flag is false.
-        # Full packages and dev environments may already contain all required assets.
+    def needs_initialization(
+        self, selected_features: Optional[Iterable[str]] = None
+    ) -> bool:
         return not self.is_ready_for_main_ui(selected_features)
 
     def check_runtime_health(self) -> bool:
-        return self._has_runtime_available() and self._runtime_import_ok()
+        """
+        检查运行时健康状态。
 
-    def check_resource_health(self, selected_features: Optional[Iterable[str]]) -> Dict[str, bool]:
+        Check runtime health status.
+
+        返回 Returns:
+            bool: 运行时是否健康
+        """
+        runtime_available = self._has_runtime_available()
+        import_ok = self._runtime_import_ok()
+
+        logging.info("运行时健康检查: 可用=%s, 导入=%s", runtime_available, import_ok)
+
+        return runtime_available and import_ok
+
+    def check_resource_health(
+        self, selected_features: Optional[Iterable[str]]
+    ) -> Dict[str, bool]:
+        """
+        检查资源健康状态。
+
+        Check resource health status.
+
+        参数 Parameters:
+            selected_features (Optional[Iterable[str]]): 选定的功能特性
+
+        返回 Returns:
+            Dict[str, bool]: 资源 ID 到健康状态的映射
+        """
         plan = resolve_download_plan(self._normalize_features(selected_features))
-        return {item["resource_id"]: self._resource_item_available(item) for item in plan}
+        health_status = {
+            item["resource_id"]: self._resource_item_available(item) for item in plan
+        }
+
+        healthy_count = sum(1 for status in health_status.values() if status)
+        logging.info("资源健康检查: %d/%d 资源可用", healthy_count, len(health_status))
+
+        return health_status
 
     def repair_runtime_if_needed(self, runtime_variant: str) -> bool:
+        """
+        如果需要，修复运行时环境。
+
+        Repair runtime environment if needed.
+
+        参数 Parameters:
+            runtime_variant (str): 运行时变体（cpu/cuda/mac）
+
+        返回 Returns:
+            bool: 是否执行了修复
+        """
         if self.check_runtime_health():
             self._emit_item_status("runtime", "done", "Runtime already healthy")
+            logging.info("运行时环境健康，无需修复")
             return False
-        self._emit_stage(STAGE_PREPARING_RUNTIME, f"Preparing {runtime_variant} runtime...")
-        self._prepare_runtime(runtime_variant)
-        return True
 
-    def repair_resources_if_needed(self, selected_features: Optional[Iterable[str]]) -> bool:
+        logging.info("运行时环境需要修复，开始准备 %s 运行时...", runtime_variant)
+        self._emit_stage(
+            STAGE_PREPARING_RUNTIME, f"Preparing {runtime_variant} runtime..."
+        )
+
+        start_time = time.perf_counter()
+        try:
+            self._prepare_runtime(runtime_variant)
+            elapsed = time.perf_counter() - start_time
+            logging.info("运行时环境修复完成，耗时 %.2f 秒", elapsed)
+            return True
+        except Exception as exc:
+            elapsed = time.perf_counter() - start_time
+            logging.error("运行时环境修复失败，耗时 %.2f 秒: %s", elapsed, exc)
+            raise
+
+    def repair_resources_if_needed(
+        self, selected_features: Optional[Iterable[str]]
+    ) -> bool:
+        """
+        如果需要，修复资源文件。
+
+        Repair resource files if needed.
+
+        参数 Parameters:
+            selected_features (Optional[Iterable[str]]): 选定的功能特性
+
+        返回 Returns:
+            bool: 是否执行了修复
+        """
         plan = resolve_download_plan(self._normalize_features(selected_features))
         pending = [item for item in plan if not self._resource_item_available(item)]
         total_items = max(1, len(pending))
+
         if not pending:
             self._emit_item_status("resources", "done", "Resources already healthy")
+            logging.info("所有资源已就绪，无需修复")
             return False
+
+        logging.info("需要修复 %d 个资源文件", len(pending))
         self._emit_stage(STAGE_DOWNLOADING, "Downloading required resources...")
+
+        start_time = time.perf_counter()
+        success_count = 0
+
         for index, resource in enumerate(pending, start=1):
             label = resource["filename"]
-            self._emit_item_status(resource["resource_id"], "running", f"Preparing {label}")
-            download_resource(
-                resource,
-                project_root=self._project_root,
-                progress_cb=self._resource_progress_cb(index, total_items),
-            )
-            self._emit_item_status(resource["resource_id"], "done", f"{label} ready")
+            resource_id = resource["resource_id"]
+
+            logging.info("开始下载资源 [%d/%d]: %s", index, total_items, label)
+
+            self._emit_item_status(resource_id, "running", f"Preparing {label}")
+
+            try:
+                download_resource(
+                    resource,
+                    project_root=self._project_root,
+                    progress_cb=self._resource_progress_cb(index, total_items),
+                )
+                success_count += 1
+                self._emit_item_status(resource_id, "done", f"{label} ready")
+                logging.info("资源 [%s] 下载成功", resource_id)
+            except Exception as exc:
+                logging.error("资源 [%s] 下载失败: %s", resource_id, exc)
+                self._emit_item_status(resource_id, "error", f"{label} failed: {exc}")
+                raise
+
+        elapsed = time.perf_counter() - start_time
+        logging.info(
+            "资源修复完成: %d/%d 成功，总耗时 %.2f 秒",
+            success_count,
+            total_items,
+            elapsed,
+        )
+
         return True
 
-    def detect_runtime_selection(self, preferred_variant: str = "auto") -> RuntimeSelection:
+    def detect_runtime_selection(
+        self, preferred_variant: str = "auto"
+    ) -> RuntimeSelection:
         if sys.platform == "darwin":
             if preferred_variant in ("cpu", "mac"):
                 return RuntimeSelection("mac", False, "macOS runtime")
@@ -281,7 +520,9 @@ class InitializationManager(QObject):
         if preferred_variant == "cuda" and detected_cuda:
             return RuntimeSelection("cuda", True, "user requested CUDA")
         if preferred_variant == "cuda" and not detected_cuda:
-            return RuntimeSelection("cpu", False, "CUDA unavailable, falling back to CPU")
+            return RuntimeSelection(
+                "cpu", False, "CUDA unavailable, falling back to CPU"
+            )
         if preferred_variant == "cpu":
             return RuntimeSelection("cpu", detected_cuda, "user requested CPU")
         if detected_cuda:
@@ -292,7 +533,8 @@ class InitializationManager(QObject):
         try:
             selected_features = self._normalize_features(options.get("features"))
             runtime_location = self.choose_runtime_install_location(
-                options.get("runtime_install_location") or self.config.runtime_install_location_preference
+                options.get("runtime_install_location")
+                or self.config.runtime_install_location_preference
             )
             self._runtime_dir = runtime_location.runtime_dir
             self._save_config(
@@ -302,7 +544,9 @@ class InitializationManager(QObject):
                 resolved_runtime_dir=str(runtime_location.runtime_dir),
             )
 
-            runtime_choice = self.detect_runtime_selection(options.get("runtime_variant", "auto"))
+            runtime_choice = self.detect_runtime_selection(
+                options.get("runtime_variant", "auto")
+            )
             if mode == "init":
                 self._save_config(
                     selected_runtime_variant=runtime_choice.variant,
@@ -314,22 +558,30 @@ class InitializationManager(QObject):
 
             self._emit_stage(STAGE_PROBING, "Probing download sources...")
             self._source_map = self._resolve_best_sources(runtime_choice.variant)
-            self._emit_item_status("source_probe", "done", f"PyPI -> {self._source_map['pypi_primary']}")
-            self._emit_item_status("source_probe", "done", f"Torch -> {self._source_map['torch_primary']}")
+            self._emit_item_status(
+                "source_probe", "done", f"PyPI -> {self._source_map['pypi_primary']}"
+            )
+            self._emit_item_status(
+                "source_probe", "done", f"Torch -> {self._source_map['torch_primary']}"
+            )
             self._save_config(resolved_source_map=self._source_map)
 
             if options.get("auto_update_enabled", True):
                 self._emit_stage(STAGE_CHECKING_UPDATES, "Checking updates...")
                 self._check_updates_if_enabled()
             else:
-                self._emit_item_status("updates", "skipped", "Automatic updates disabled by user")
+                self._emit_item_status(
+                    "updates", "skipped", "Automatic updates disabled by user"
+                )
 
             self.repair_runtime_if_needed(runtime_choice.variant)
             self.repair_resources_if_needed(selected_features)
 
             self._emit_stage(STAGE_VERIFYING, "Verifying resources...")
             if not self.is_ready_for_main_ui(selected_features):
-                raise RuntimeError("Initialization completed with missing runtime or resources")
+                raise RuntimeError(
+                    "Initialization completed with missing runtime or resources"
+                )
 
             success_updates: dict[str, object] = {"initialization_in_progress": False}
             if mode == "init":
@@ -337,18 +589,29 @@ class InitializationManager(QObject):
                     initialization_completed=True,
                     is_first_run=False,
                     downloaded_resources={
-                        item["resource_id"]: True for item in resolve_download_plan(selected_features)
+                        item["resource_id"]: True
+                        for item in resolve_download_plan(selected_features)
                     },
                 )
             self._save_config(**success_updates)
-            final_message = "Initialization completed" if mode == "init" else "Environment repair completed"
+            final_message = (
+                "Initialization completed"
+                if mode == "init"
+                else "Environment repair completed"
+            )
             self._emit_stage(STAGE_READY, final_message)
             self.finished.emit(
                 True,
-                {"runtime_variant": runtime_choice.variant, "source_map": self._source_map, "mode": mode},
+                {
+                    "runtime_variant": runtime_choice.variant,
+                    "source_map": self._source_map,
+                    "mode": mode,
+                },
             )
         except Exception as exc:
-            self._save_config(initialization_in_progress=False, last_init_error=str(exc))
+            self._save_config(
+                initialization_in_progress=False, last_init_error=str(exc)
+            )
             self._emit_stage(STAGE_FAILED, str(exc))
             self.finished.emit(False, {"error": str(exc), "mode": mode})
 
@@ -357,6 +620,7 @@ class InitializationManager(QObject):
             overall = int((((item_index - 1) + (percent / 100.0)) / total_items) * 100)
             self.progress_changed.emit(overall, message, item_index - 1, total_items)
             self._emit_item_status(resource["resource_id"], "progress", message)
+
         return _callback
 
     def _emit_stage(self, stage: str, message: str) -> None:
@@ -370,12 +634,11 @@ class InitializationManager(QObject):
             checker.check_for_updates()
             self._emit_item_status("updates", "done", "Update probe finished")
         except Exception as exc:
-            # Initialization continues even if update probing fails.
             self._emit_item_status("updates", "warning", f"Update probe skipped: {exc}")
 
     def _resolve_best_sources(self, runtime_variant: str) -> Dict[str, str]:
         pypi_results = probe_sources("pypi", PIPY_SOURCES)
-        best_pypi = pick_best_source(pypi_results)
+        best_pypi = self._pick_preferred_source(pypi_results)
 
         torch_sources = MAC_TORCH_SOURCES
         if runtime_variant == "cuda":
@@ -384,18 +647,12 @@ class InitializationManager(QObject):
             torch_sources = CPU_TORCH_SOURCES
 
         torch_results = probe_sources(f"torch-{runtime_variant}", torch_sources)
-        best_torch = pick_best_source(torch_results)
+        best_torch = self._pick_preferred_source(torch_results)
 
         pypi_primary = best_pypi.url if best_pypi else PIPY_SOURCES[0]["url"]
-        pypi_fallback = next(
-            (source["url"] for source in PIPY_SOURCES if source["url"] != pypi_primary),
-            pypi_primary,
-        )
+        pypi_fallback = self._resolve_fallback_url(pypi_results, pypi_primary)
         torch_primary = best_torch.url if best_torch else torch_sources[0]["url"]
-        torch_fallback = next(
-            (source["url"] for source in torch_sources if source["url"] != torch_primary),
-            torch_primary,
-        )
+        torch_fallback = self._resolve_fallback_url(torch_results, torch_primary)
 
         selected = {
             "pypi_primary": pypi_primary,
@@ -405,13 +662,53 @@ class InitializationManager(QObject):
         }
         return selected
 
+    @staticmethod
+    def _pick_preferred_source(results):
+        successful = [item for item in results if item.ok]
+        if not successful:
+            return None
+
+        non_official = [
+            item for item in successful if "official" not in item.name.lower()
+        ]
+        if non_official:
+            return pick_best_source(non_official)
+        return pick_best_source(successful)
+
+    @staticmethod
+    def _resolve_fallback_url(results, primary_url: str) -> str:
+        successful = [item for item in results if item.ok and item.url != primary_url]
+        if not successful:
+            return primary_url
+
+        non_official = [
+            item for item in successful if "official" not in item.name.lower()
+        ]
+        if non_official:
+            fallback = pick_best_source(non_official)
+            return fallback.url if fallback else primary_url
+
+        fallback = pick_best_source(successful)
+        return fallback.url if fallback else primary_url
+
     def _prepare_runtime(self, runtime_variant: str) -> None:
+        if self._use_packaged_runtime_bootstrap():
+            self._prepare_runtime_with_packaged_bootstrap(runtime_variant)
+            return
+
         python_cmd = self._resolve_python_command()
         if not self._runtime_dir.exists():
-            self._run_subprocess([*python_cmd, "-m", "venv", str(self._runtime_dir)], "Create runtime venv")
+            self._run_subprocess(
+                [*python_cmd, "-m", "venv", str(self._runtime_dir)],
+                "Create runtime venv",
+            )
 
-        pip_executable = self._runtime_dir / ("Scripts" if os.name == "nt" else "bin") / ("pip.exe" if os.name == "nt" else "pip")
-        requirements_file = self._project_root / RUNTIME_REQUIREMENTS[runtime_variant]
+        pip_executable = (
+            self._runtime_dir
+            / ("Scripts" if os.name == "nt" else "bin")
+            / ("pip.exe" if os.name == "nt" else "pip")
+        )
+        requirements_file = self._resolve_runtime_requirements_path(runtime_variant)
         install_cmd = [
             str(pip_executable),
             "install",
@@ -425,20 +722,64 @@ class InitializationManager(QObject):
         if runtime_variant in ("cpu", "cuda"):
             install_cmd.extend(["--extra-index-url", self._source_map["torch_primary"]])
             if self._source_map["torch_fallback"] != self._source_map["torch_primary"]:
-                install_cmd.extend(["--extra-index-url", self._source_map["torch_fallback"]])
+                install_cmd.extend(
+                    ["--extra-index-url", self._source_map["torch_fallback"]]
+                )
         self._run_subprocess(install_cmd, f"Install {runtime_variant} runtime")
         self._inject_runtime_site_packages()
         self._verify_runtime_import(runtime_variant)
 
+    def _use_packaged_runtime_bootstrap(self) -> bool:
+        return getattr(sys, "frozen", False) and sys.platform == "win32"
+
+    def _runtime_site_packages_candidates(self) -> list[Path]:
+        version_tag = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        return [
+            self._runtime_dir / "site-packages",
+            self._runtime_dir / "Lib" / "site-packages",
+            self._runtime_dir / "lib" / version_tag / "site-packages",
+        ]
+
+    def _prepare_runtime_with_packaged_bootstrap(self, runtime_variant: str) -> None:
+        requirements_file = self._resolve_runtime_requirements_path(runtime_variant)
+        runtime_site_packages = self._runtime_dir / "site-packages"
+        runtime_site_packages.mkdir(parents=True, exist_ok=True)
+
+        command = [
+            str(Path(sys.executable).resolve()),
+            "--runtime-bootstrap",
+            "--runtime-dir",
+            str(self._runtime_dir),
+            "--requirements",
+            str(requirements_file),
+            "--index-url",
+            self._source_map["pypi_primary"],
+            "--extra-index-url",
+            self._source_map["pypi_fallback"],
+        ]
+        if runtime_variant in ("cpu", "cuda"):
+            command.extend(["--extra-index-url", self._source_map["torch_primary"]])
+            if self._source_map["torch_fallback"] != self._source_map["torch_primary"]:
+                command.extend(
+                    ["--extra-index-url", self._source_map["torch_fallback"]]
+                )
+
+        self._run_subprocess(command, f"Install {runtime_variant} runtime")
+        self._inject_runtime_site_packages()
+        self._verify_runtime_import(runtime_variant)
+
     def _run_subprocess(self, command: list[str], label: str) -> None:
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
+        popen_kwargs = {
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.STDOUT,
+            "text": True,
+            "encoding": "utf-8",
+            "errors": "replace",
+        }
+        if os.name == "nt":
+            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+        process = subprocess.Popen(command, **popen_kwargs)
         assert process.stdout is not None
         for line in process.stdout:
             text = line.strip()
@@ -453,7 +794,11 @@ class InitializationManager(QObject):
             return [shutil.which("python") or "python"]
 
         candidates = [
-            [sys.executable] if sys.executable else None,
+            (
+                [sys.executable]
+                if sys.executable and not getattr(sys, "frozen", False)
+                else None
+            ),
             [shutil.which("python3")] if shutil.which("python3") else None,
             [shutil.which("python")] if shutil.which("python") else None,
             ["py", "-3"] if shutil.which("py") else None,
@@ -476,12 +821,7 @@ class InitializationManager(QObject):
 
     def _inject_runtime_site_packages(self) -> None:
         importlib.invalidate_caches()
-        version_tag = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        candidates = [
-            self._runtime_dir / "Lib" / "site-packages",
-            self._runtime_dir / "lib" / version_tag / "site-packages",
-        ]
-        for candidate in candidates:
+        for candidate in self._runtime_site_packages_candidates():
             if candidate.exists():
                 path = str(candidate)
                 if path not in sys.path:
@@ -492,9 +832,15 @@ class InitializationManager(QObject):
             importlib.invalidate_caches()
             torch_module = importlib.import_module("torch")
             torch_version = getattr(torch_module, "__version__", "unknown")
-            self._emit_item_status("runtime", "done", f"Torch import OK: {torch_version} ({runtime_variant})")
+            self._emit_item_status(
+                "runtime",
+                "done",
+                f"Torch import OK: {torch_version} ({runtime_variant})",
+            )
         except Exception as exc:
-            raise RuntimeError(f"Runtime installed but Torch import failed: {exc}") from exc
+            raise RuntimeError(
+                f"Runtime installed but Torch import failed: {exc}"
+            ) from exc
 
     def _runtime_import_ok(self) -> bool:
         try:
@@ -514,10 +860,17 @@ class InitializationManager(QObject):
     def _resources_available(self, selected_features: Optional[Iterable[str]]) -> bool:
         features = self._normalize_features(selected_features)
         plan = resolve_download_plan(features)
-        return all(self._resource_item_available(item) for item in plan if item.get("required") or selected_features)
+        return all(
+            self._resource_item_available(item)
+            for item in plan
+            if item.get("required") or selected_features
+        )
 
     def _resource_item_available(self, item: dict) -> bool:
-        path = self._project_root / item["dest_dir"] / item["filename"]
+        path = (
+            resolve_resource_destination_dir(self._project_root, item)
+            / item["filename"]
+        )
         return path.exists()
 
     def _detect_cuda_capable(self) -> bool:
@@ -530,6 +883,7 @@ class InitializationManager(QObject):
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=4,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             return result.returncode == 0 and bool(result.stdout.strip())
         except Exception:
