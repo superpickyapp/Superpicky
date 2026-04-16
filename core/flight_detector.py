@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Flight Detector - 飞版检测模块
-使用 EfficientNet-B3 模型检测鸟类是否处于飞行
+Flight Detector - 飞版检测模块。
+Flight Detector module.
+
+使用 EfficientNet-B3 模型检测鸟类是否处于飞行。
+Uses an EfficientNet-B3 model to determine whether a bird is in flight.
 """
 
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional, Union, cast
 import numpy as np
 
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
-from config import get_best_device, get_install_scoped_resource_path, get_packaged_model_relative_path
+from config import (
+    get_best_device,
+    get_install_scoped_resource_path,
+    get_packaged_model_relative_path,
+    get_runtime_app_root,
+    get_runtime_meipass,
+)
 
 
 @dataclass
@@ -40,8 +49,8 @@ class FlightDetector:
         Args:
             model_path: 模型文件路径，如果为 None 则使用默认路径
         """
-        self.model = None
-        self.device = None
+        self.model: Optional[nn.Module] = None
+        self.device: Optional[torch.device] = None
         self.model_loaded = False
 
         if model_path is None:
@@ -51,12 +60,15 @@ class FlightDetector:
                     "models/superFlier_efficientnet.pth",
                     packaged_relative_path=get_packaged_model_relative_path("models/superFlier_efficientnet.pth"),
                 )
-            elif hasattr(sys, '_MEIPASS'):
-                self.model_path = Path(sys._MEIPASS) / "models" / "superFlier_efficientnet.pth"
             else:
-                project_root = Path(getattr(sys, '_SUPERPICKY_APP_ROOT',
-                                            str(Path(__file__).parent.parent)))
-                self.model_path = project_root / "models" / "superFlier_efficientnet.pth"
+                meipass = get_runtime_meipass()
+                if meipass is not None:
+                    self.model_path = Path(meipass) / "models" / "superFlier_efficientnet.pth"
+                else:
+                    project_root = get_runtime_app_root()
+                    if project_root is None:
+                        project_root = str(Path(__file__).parent.parent)
+                    self.model_path = Path(project_root) / "models" / "superFlier_efficientnet.pth"
         else:
             self.model_path = Path(model_path)
 
@@ -73,13 +85,19 @@ class FlightDetector:
         """
         构建 EfficientNet-B3 模型结构
         """
-        model = models.efficientnet_b3(weights=None)
-        in_features = model.classifier[1].in_features
+        model = cast(nn.Module, models.efficientnet_b3(weights=None))
+        classifier = cast(nn.Sequential, getattr(model, "classifier"))
+        classifier_linear = cast(nn.Linear, classifier[1])
+        in_features = classifier_linear.in_features
 
-        model.classifier = nn.Sequential(
+        setattr(
+            model,
+            "classifier",
+            nn.Sequential(
             nn.Dropout(0.2),
             nn.Linear(in_features, 1),
             nn.Sigmoid()
+            ),
         )
 
         return model
@@ -95,7 +113,7 @@ class FlightDetector:
         if not self.model_path.exists():
             raise FileNotFoundError(f"飞版检测模型未找到: {self.model_path}")
 
-        self.device = get_best_device()
+        self.device = torch.device(str(get_best_device()))
         self.model = self._build_model()
 
         try:
@@ -108,14 +126,14 @@ class FlightDetector:
         except Exception as e:
             raise RuntimeError(f"加载飞版检测模型失败: {e}")
 
-        self.model.to(self.device)
+        self.model.to(device=self.device)
         self.model.eval()
         self.model_loaded = True
     
     def detect(
         self,
         image: Union[np.ndarray, Image.Image, str],
-        threshold: float = None
+        threshold: Optional[float] = None
     ) -> FlightResult:
         """
         检测图像中的鸟是否处于飞行状态
@@ -150,7 +168,11 @@ class FlightDetector:
         else:
             raise ValueError(f"不支持的图像类型: {type(image)}")
 
-        image_tensor = self.transform(pil_image).unsqueeze(0).to(self.device)
+        transformed_tensor = cast(torch.Tensor, self.transform(pil_image))
+        image_tensor = transformed_tensor.unsqueeze(0).to(self.device)
+
+        if self.model is None:
+            raise RuntimeError("飞版检测模型尚未初始化")
 
         with torch.no_grad():
             prob = self.model(image_tensor).item()
@@ -164,7 +186,7 @@ class FlightDetector:
     def detect_batch(
         self,
         images: list,
-        threshold: float = None,
+        threshold: Optional[float] = None,
         batch_size: int = 8
     ) -> list:
         """
@@ -202,15 +224,20 @@ class FlightDetector:
                 else:
                     continue
 
-                batch_tensors.append(self.transform(pil_image))
+                batch_tensors.append(cast(torch.Tensor, self.transform(pil_image)))
 
             if not batch_tensors:
                 continue
 
+            if self.device is None:
+                raise RuntimeError("飞版检测设备尚未初始化")
             batch_tensor = torch.stack(batch_tensors).to(self.device)
 
+            if self.model is None:
+                raise RuntimeError("飞版检测模型尚未初始化")
+            model = self.model
             with torch.no_grad():
-                probs = self.model(batch_tensor).squeeze().cpu().numpy()
+                probs = model(batch_tensor).squeeze().cpu().numpy() # type: ignore
 
             if probs.ndim == 0:
                 probs = [probs.item()]

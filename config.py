@@ -64,6 +64,55 @@ def get_app_install_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
+def get_runtime_meipass() -> Optional[str]:
+    """
+    返回 PyInstaller 注入的 `_MEIPASS` 路径字符串。
+    Return the `_MEIPASS` path string injected by PyInstaller.
+
+    这是运行时动态属性，静态类型检查器并不知道它一定存在，
+    所以所有调用方都应通过此函数统一访问，而不是直接读取 `sys._MEIPASS`。
+    This is a runtime-only dynamic attribute that static type checkers do not
+    know about, so callers should go through this helper instead of touching
+    `sys._MEIPASS` directly.
+    """
+    meipass = getattr(sys, "_MEIPASS", None)
+    if isinstance(meipass, str) and meipass:
+        return meipass
+    return None
+
+
+def get_runtime_app_root() -> Optional[str]:
+    """
+    返回补丁覆盖层记录的真实应用根目录字符串。
+    Return the real application root string recorded for the patch overlay.
+
+    在线补丁覆盖层会优先导入用户目录中的模块，导致 `__file__` 可能指向
+    `code_updates/`。这里统一读取主入口注入的真实根目录，避免各模块自行
+    读取 `sys._SUPERPICKY_APP_ROOT` 触发静态告警。
+    The patch overlay may cause `__file__` to point at `code_updates/`, so this
+    helper reads the real app root injected by the main entrypoint and avoids
+    direct `sys._SUPERPICKY_APP_ROOT` access across modules.
+    """
+    app_root = getattr(sys, "_SUPERPICKY_APP_ROOT", None)
+    if isinstance(app_root, str) and app_root:
+        return app_root
+    return None
+
+
+def set_runtime_app_root(app_root: str) -> str:
+    """
+    写入补丁覆盖层共享的真实应用根目录。
+    Persist the real application root shared by the patch overlay.
+
+    这里使用 `setattr` 写入运行时动态属性，既保留现有打包/补丁行为，
+    也避免直接赋值 `sys._SUPERPICKY_APP_ROOT` 触发 Pylance 属性告警。
+    This helper uses `setattr` to preserve the existing runtime contract while
+    avoiding direct `sys._SUPERPICKY_APP_ROOT` assignments that trip Pylance.
+    """
+    setattr(sys, "_SUPERPICKY_APP_ROOT", app_root)
+    return app_root
+
+
 def get_bundled_resource_dir() -> Path:
     """返回静态打包资源根目录 / Return the root directory for bundled static resources."""
     if getattr(sys, "frozen", False):
@@ -71,11 +120,11 @@ def get_bundled_resource_dir() -> Path:
             executable = Path(sys.executable).resolve()
             if executable.parent.name == "MacOS":
                 return executable.parents[1] / "Resources"
-        meipass = getattr(sys, "_MEIPASS", None)
-        if isinstance(meipass, str):
+        meipass = get_runtime_meipass()
+        if meipass is not None:
             return Path(meipass)
-    app_root = getattr(sys, "_SUPERPICKY_APP_ROOT", None)
-    if isinstance(app_root, str) and app_root:
+    app_root = get_runtime_app_root()
+    if app_root is not None:
         return Path(app_root)
     return get_app_install_dir()
 

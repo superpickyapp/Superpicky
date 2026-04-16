@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-鸟类识别停靠面板
-可停靠在主窗口边缘的识鸟功能面板
-风格与 SuperPicky 主窗口统一
+鸟类识别停靠面板。
+Bird-identification dock panel.
+
+可停靠在主窗口边缘，负责识鸟入口、区域筛选与结果展示。
+Dockable beside the main window and responsible for the BirdID entry,
+region filtering, and result presentation.
 """
 
 import os
 import sys
+from typing import Any, Optional, cast
 
 from PySide6.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout,
@@ -19,16 +23,40 @@ from PySide6.QtCore import Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QFont
 
 from ui.styles import COLORS, FONTS
-from config import get_app_config_dir, get_install_scoped_resource_path
+from config import (
+    get_app_config_dir,
+    get_install_scoped_resource_path,
+    get_runtime_meipass,
+)
 
 from tools.i18n import get_i18n
 
+ALIGN_CENTER = Qt.AlignmentFlag.AlignCenter
+ALIGN_RIGHT_VCENTER = (
+    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+)
+LEFT_BUTTON = Qt.MouseButton.LeftButton
+POINTING_HAND_CURSOR = Qt.CursorShape.PointingHandCursor
+SIZE_POLICY_EXPANDING = QSizePolicy.Policy.Expanding
+SIZE_POLICY_PREFERRED = QSizePolicy.Policy.Preferred
+ALLOWED_DOCK_AREAS = (
+    Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+)
+USER_ROLE = int(Qt.ItemDataRole.UserRole)
+KEEP_ASPECT_RATIO = Qt.AspectRatioMode.KeepAspectRatio
+SMOOTH_TRANSFORMATION = Qt.TransformationMode.SmoothTransformation
+
 def get_birdid_data_path(relative_path: str) -> str:
-    """获取 birdid/data 目录下的资源路径"""
+    """
+    获取 `birdid/data` 目录下的资源路径。
+    Return a resource path under `birdid/data`.
+    """
     if getattr(sys, 'frozen', False) and sys.platform == 'win32':
         return str(get_install_scoped_resource_path(os.path.join('birdid', 'data', relative_path)))
     if getattr(sys, 'frozen', False):
-        return os.path.join(sys._MEIPASS, 'birdid', 'data', relative_path)
+        meipass = get_runtime_meipass()
+        if meipass is not None:
+            return os.path.join(meipass, 'birdid', 'data', relative_path)
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_dir, 'birdid', 'data', relative_path)
 
@@ -47,8 +75,8 @@ class IdentifyWorker(QThread):
 
     def __init__(self, image_path: str, top_k: int = 5,
                  use_gps: bool = True, use_ebird: bool = True,
-                 country_code: str = None, region_code: str = None,
-                 name_format: str = None):
+                 country_code: Optional[str] = None, region_code: Optional[str] = None,
+                 name_format: Optional[str] = None):
         super().__init__()
         self.image_path = image_path
         self.top_k = top_k
@@ -99,7 +127,7 @@ class DropArea(QFrame):
         """)
 
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
+        layout.setAlignment(ALIGN_CENTER)
         layout.setSpacing(8)
 
         # 图标 - + 号
@@ -110,12 +138,12 @@ class DropArea(QFrame):
             color: {COLORS['text_tertiary']};
             background: transparent;
         """)
-        icon_label.setAlignment(Qt.AlignCenter)
+        icon_label.setAlignment(ALIGN_CENTER)
         layout.addWidget(icon_label)
 
         # 提示文字
         hint_label = QLabel(self.i18n.t("birdid.drag_hint"))
-        hint_label.setAlignment(Qt.AlignCenter)
+        hint_label.setAlignment(ALIGN_CENTER)
         hint_label.setWordWrap(True)
         hint_label.setStyleSheet(f"""
             color: {COLORS['text_tertiary']};
@@ -138,7 +166,7 @@ class DropArea(QFrame):
 
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == LEFT_BUTTON:
             self.selectFile()
 
     def selectFile(self):
@@ -186,7 +214,7 @@ class ResultCard(QFrame):
         self.i18n = get_i18n()
         self._selected = False
 
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(POINTING_HAND_CURSOR)
         self._update_style()
 
         # 外层水平布局：左侧色条 + 内容
@@ -238,7 +266,7 @@ class ResultCard(QFrame):
             color: {COLORS['text_primary']};
             background: transparent;
         """)
-        self.name_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.name_label.setSizePolicy(SIZE_POLICY_EXPANDING, SIZE_POLICY_PREFERRED)
 
         layout.addWidget(self.name_label, 1)
 
@@ -259,7 +287,7 @@ class ResultCard(QFrame):
             background: transparent;
         """)
         self.conf_label.setFixedWidth(40)
-        self.conf_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.conf_label.setAlignment(ALIGN_RIGHT_VCENTER)
         layout.addWidget(self.conf_label)
 
         outer_layout.addWidget(content_widget, 1)
@@ -356,7 +384,7 @@ class BirdIDDockWidget(QDockWidget):
         self.i18n = get_i18n()
         super().__init__(self.i18n.t("birdid.title").upper(), parent)
         self.setObjectName("BirdIDDock")
-        self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.setAllowedAreas(ALLOWED_DOCK_AREAS)
         self.setMinimumWidth(280)
 
         # 使用自定义标题栏以控制按钮位置
@@ -582,7 +610,7 @@ class BirdIDDockWidget(QDockWidget):
             if code in ("SEP1", "SEP2"):
                 idx = self.country_combo.count() - 1
                 # 获取模型中的 item 并设置为不可选
-                model = self.country_combo.model()
+                model = cast(Any, self.country_combo.model())
                 item = model.item(idx)
                 if item:
                     item.setEnabled(False)
@@ -874,8 +902,8 @@ class BirdIDDockWidget(QDockWidget):
 
         for _, display, code, name_en in other_regions:
             item = QListWidgetItem(display)
-            item.setData(Qt.UserRole, code)
-            item.setData(Qt.UserRole + 1, name_en)  # 用于搜索
+            item.setData(USER_ROLE, code)
+            item.setData(USER_ROLE + 1, name_en)  # 用于搜索
             list_widget.addItem(item)
 
         layout.addWidget(list_widget)
@@ -885,21 +913,27 @@ class BirdIDDockWidget(QDockWidget):
             for i in range(list_widget.count()):
                 item = list_widget.item(i)
                 display_name = item.text().lower()
-                en_name = (item.data(Qt.UserRole + 1) or "").lower()
+                en_name = (item.data(USER_ROLE + 1) or "").lower()
                 visible = text in display_name or text in en_name
                 item.setHidden(not visible)
 
         search_input.textChanged.connect(filter_countries)
 
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+        )
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
         layout.addWidget(button_box)
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             selected = list_widget.currentItem()
             if selected:
-                code = selected.data(Qt.UserRole)
+                code_data = selected.data(USER_ROLE)
+                if not isinstance(code_data, str):
+                    return
+                code = code_data
                 display = selected.text()
                 existing = [self.country_combo.itemText(i) for i in range(self.country_combo.count())]
                 if display not in existing:
@@ -1045,9 +1079,9 @@ class BirdIDDockWidget(QDockWidget):
         identify_layout.addWidget(self.drop_area)
 
         self.preview_label = DropPreviewLabel()
-        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setAlignment(ALIGN_CENTER)
         self.preview_label.setMinimumHeight(100)
-        self.preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.preview_label.setSizePolicy(SIZE_POLICY_EXPANDING, SIZE_POLICY_PREFERRED)
         self.preview_label.setStyleSheet(f"""
             background-color: {COLORS['bg_elevated']};
             border-radius: 10px;
@@ -1065,7 +1099,7 @@ class BirdIDDockWidget(QDockWidget):
             color: {COLORS['text_tertiary']};
             font-family: {FONTS['mono']};
         """)
-        self.filename_label.setAlignment(Qt.AlignCenter)
+        self.filename_label.setAlignment(ALIGN_CENTER)
         self.filename_label.setWordWrap(True)
         self.filename_label.hide()
         identify_layout.addWidget(self.filename_label)
@@ -1109,7 +1143,7 @@ class BirdIDDockWidget(QDockWidget):
 
         self.results_scroll = QScrollArea()
         self.results_scroll.setWidgetResizable(True)
-        self.results_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.results_scroll.setSizePolicy(SIZE_POLICY_EXPANDING, SIZE_POLICY_EXPANDING)
         self.results_scroll.setStyleSheet(f"""
             QScrollArea {{
                 border: none;
@@ -1136,9 +1170,9 @@ class BirdIDDockWidget(QDockWidget):
             }}
         """)
         ph_layout = QVBoxLayout(self.placeholder_frame)
-        ph_layout.setAlignment(Qt.AlignCenter)
+        ph_layout.setAlignment(ALIGN_CENTER)
         ph_label = QLabel(self.i18n.t("birdid.drag_photo_hint"))
-        ph_label.setAlignment(Qt.AlignCenter)
+        ph_label.setAlignment(ALIGN_CENTER)
         ph_label.setStyleSheet(f"""
             color: {COLORS['text_muted']};
             font-size: 12px;
@@ -1281,6 +1315,7 @@ class BirdIDDockWidget(QDockWidget):
                     region_code = match.group(1)
 
         from advanced_config import get_advanced_config
+        advanced_config = get_advanced_config()
         self.worker = IdentifyWorker(
             file_path,
             top_k=5,
@@ -1288,7 +1323,7 @@ class BirdIDDockWidget(QDockWidget):
             use_ebird=use_ebird,
             country_code=country_code,
             region_code=region_code,
-            name_format=get_advanced_config().name_format,
+            name_format=advanced_config.name_format,
         )
         self.worker.finished.connect(self.on_identify_finished)
         self.worker.error.connect(self.on_identify_error)
@@ -1331,7 +1366,7 @@ class BirdIDDockWidget(QDockWidget):
         max_height = 280
         scaled = self._current_pixmap.scaled(
             available_width, max_height,
-            Qt.KeepAspectRatio, Qt.SmoothTransformation
+            KEEP_ASPECT_RATIO, SMOOTH_TRANSFORMATION
         )
         self.preview_label.setPixmap(scaled)
 
@@ -1363,7 +1398,13 @@ class BirdIDDockWidget(QDockWidget):
             h, w, ch = rgb_img.shape
             bytes_per_line = ch * w
 
-            q_img = QImage(rgb_img.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            q_img = QImage(
+                rgb_img.data,
+                w,
+                h,
+                bytes_per_line,
+                QImage.Format.Format_RGB888,
+            )
             pixmap = QPixmap.fromImage(q_img)
 
             self._current_pixmap = pixmap
@@ -1384,7 +1425,7 @@ class BirdIDDockWidget(QDockWidget):
             color = self._FOCUS_STATUS_COLOR.get(focus_status, COLORS['text_secondary'])
 
             focus_label = QLabel(display_text)
-            focus_label.setAlignment(Qt.AlignCenter)
+            focus_label.setAlignment(ALIGN_CENTER)
             focus_label.setStyleSheet(f"""
                 color: {color};
                 font-size: 15px;
@@ -1465,8 +1506,9 @@ class BirdIDDockWidget(QDockWidget):
     def clear_results(self):
         while self.results_layout.count():
             item = self.results_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            widget = item.widget() # pyright: ignore[reportOptionalMemberAccess]
+            if widget is not None:
+                widget.deleteLater()
 
     def on_identify_finished(self, result: dict):
         self.progress.hide()
@@ -1572,8 +1614,13 @@ class BirdIDDockWidget(QDockWidget):
                 from PySide6.QtGui import QImage
                 rgb = cropped_pil.convert('RGB')
                 data = rgb.tobytes('raw', 'RGB')
-                q_img = QImage(data, rgb.width, rgb.height,
-                               rgb.width * 3, QImage.Format_RGB888)
+                q_img = QImage(
+                    data,
+                    rgb.width,
+                    rgb.height,
+                    rgb.width * 3,
+                    QImage.Format.Format_RGB888,
+                )
                 pixmap = QPixmap.fromImage(q_img)
                 if not pixmap.isNull():
                     self._current_pixmap = pixmap
@@ -1623,7 +1670,7 @@ class BirdIDDockWidget(QDockWidget):
             self._current_pixmap = self._result_crop_pixmap
             self._scale_preview()
 
-        if hasattr(self, 'identify_results') and 0 <= index < len(self.identify_results):
+        if isinstance(self.identify_results, list) and 0 <= index < len(self.identify_results):
             result = self.identify_results[index]
             is_en = self.i18n.current_lang.startswith('en')
             bird_name = result.get('en_name', '') if is_en else result.get('cn_name', '')
@@ -1643,7 +1690,7 @@ class BirdIDDockWidget(QDockWidget):
             QTimer.singleShot(600, lambda: card.name_label.setStyleSheet(original_style))
 
     def _update_status_label(self):
-        if hasattr(self, 'selected_index') and hasattr(self, 'identify_results'):
+        if hasattr(self, 'selected_index') and isinstance(self.identify_results, list):
             if 0 <= self.selected_index < len(self.identify_results):
                 selected = self.identify_results[self.selected_index]
                 self.status_label.setText(f"✓ {selected['cn_name']} ({selected['confidence']:.0f}%)")
@@ -1749,7 +1796,7 @@ class BirdIDDockWidget(QDockWidget):
             is_en = self.i18n.current_lang.startswith('en')
 
             msg = QMessageBox(self)
-            msg.setIcon(QMessageBox.Warning)
+            msg.setIcon(QMessageBox.Icon.Warning)
             msg.setWindowTitle(self.i18n.t("birdid.title"))
 
             if is_en:
@@ -1759,16 +1806,16 @@ class BirdIDDockWidget(QDockWidget):
                     "Tap \"Open Settings\" — find this app and flip the switch on.\n"
                     "Then come back and try again!"
                 )
-                open_btn = msg.addButton("  Open Settings  ", QMessageBox.AcceptRole)
-                msg.addButton("Later", QMessageBox.RejectRole)
+                open_btn = msg.addButton("  Open Settings  ", QMessageBox.ButtonRole.AcceptRole)
+                msg.addButton("Later", QMessageBox.ButtonRole.RejectRole)
             else:
                 msg.setText("需要屏幕录制权限")
                 msg.setInformativeText(
                     "截图识鸟功能需要「屏幕录制」权限才能工作。\n\n"
                     "点击下方按钮一键跳转设置页，为本应用开启权限后即可使用。"
                 )
-                open_btn = msg.addButton("  打开系统设置  ", QMessageBox.AcceptRole)
-                msg.addButton("稍后再说", QMessageBox.RejectRole)
+                open_btn = msg.addButton("  打开系统设置  ", QMessageBox.ButtonRole.AcceptRole)
+                msg.addButton("稍后再说", QMessageBox.ButtonRole.RejectRole)
 
             msg.setStyleSheet(f"""
                 QMessageBox {{
@@ -1902,7 +1949,7 @@ class BirdIDDockWidget(QDockWidget):
         if image is None or image.isNull():
             return
         tmp_file = os.path.join(tempfile.gettempdir(), 'birdid_screenshot.png')
-        if image.save(tmp_file, 'PNG'):
+        if image.save(tmp_file, b'PNG'):
             self.on_file_dropped(tmp_file)
         else:
             self._show_screenshot_error("截图保存失败")
@@ -1932,7 +1979,13 @@ class BirdIDDockWidget(QDockWidget):
         VK_SHIFT = 0x10
         VK_S     = 0x53
 
-        keybd = ctypes.windll.user32.keybd_event
+        windll = getattr(ctypes, "windll", None)
+        if windll is None:
+            self._restore_win_window()
+            self.status_label.setText("当前环境不支持 Windows 截图快捷键")
+            self.status_label.setStyleSheet(f"font-size: 11px; color: {COLORS['error']};")
+            return
+        keybd = windll.user32.keybd_event
         try:
             keybd(VK_LWIN,  0, 0, 0)
             keybd(VK_SHIFT, 0, 0, 0)
@@ -1980,7 +2033,7 @@ class BirdIDDockWidget(QDockWidget):
                 return
 
             tmp_file = os.path.join(tempfile.gettempdir(), 'birdid_screenshot.png')
-            if image.save(tmp_file, 'PNG'):
+            if image.save(tmp_file, b'PNG'):
                 self._restore_win_window()
                 QTimer.singleShot(100, lambda: self.on_file_dropped(tmp_file))
             else:

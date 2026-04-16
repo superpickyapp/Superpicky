@@ -1,6 +1,10 @@
 """
-关键点检测器模块
-使用 CUB-200 训练的 ResNet50 模型检测鸟类关键点（左眼、右眼、喙）
+关键点检测器模块。
+Keypoint detector module.
+
+使用 CUB-200 训练的 ResNet50 模型检测鸟类关键点（左眼、右眼、喙）。
+Uses a CUB-200-trained ResNet50 model to detect bird keypoints (left eye,
+right eye, and beak).
 """
 
 import os
@@ -13,8 +17,14 @@ from PIL import Image
 import numpy as np
 import cv2
 from dataclasses import dataclass
-from typing import Optional, Tuple
-from config import get_best_device, get_install_scoped_resource_path, get_packaged_model_relative_path
+from typing import Any, Optional, Tuple, cast
+from config import (
+    get_best_device,
+    get_install_scoped_resource_path,
+    get_packaged_model_relative_path,
+    get_runtime_app_root,
+    get_runtime_meipass,
+)
 
 
 @dataclass
@@ -38,9 +48,10 @@ class PartLocalizer(nn.Module):
     def __init__(self, num_parts=3, hidden_dim=512, dropout=0.2):
         super().__init__()
         self.num_parts = num_parts
-        self.backbone = models.resnet50(weights=None)
-        in_features = self.backbone.fc.in_features
-        self.backbone.fc = nn.Identity()
+        self.backbone = cast(nn.Module, models.resnet50(weights=None))
+        backbone_fc = cast(nn.Linear, getattr(self.backbone, "fc"))
+        in_features = backbone_fc.in_features
+        setattr(self.backbone, "fc", nn.Identity())
 
         self.head = nn.Sequential(
             nn.Linear(in_features, hidden_dim),
@@ -72,7 +83,10 @@ class KeypointDetector:
     
     @staticmethod
     def _get_default_model_path() -> str:
-        """获取默认模型路径（支持 PyInstaller 打包）"""
+        """
+        获取默认模型路径并兼容冻结环境。
+        Resolve the default model path while remaining compatible with frozen builds.
+        """
         import sys
         if getattr(sys, 'frozen', False) and sys.platform == 'win32':
             return str(
@@ -81,14 +95,16 @@ class KeypointDetector:
                     packaged_relative_path=get_packaged_model_relative_path('models/cub200_keypoint_resnet50_slim.pth'),
                 )
             )
-        if hasattr(sys, '_MEIPASS'):
-            return os.path.join(sys._MEIPASS, 'models', 'cub200_keypoint_resnet50_slim.pth')
-        else:
-            project_root = getattr(sys, '_SUPERPICKY_APP_ROOT',
-                                   os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            return os.path.join(project_root, 'models', 'cub200_keypoint_resnet50_slim.pth')
+        meipass = get_runtime_meipass()
+        if meipass is not None:
+            return os.path.join(meipass, 'models', 'cub200_keypoint_resnet50_slim.pth')
+
+        project_root = get_runtime_app_root()
+        if project_root is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return os.path.join(project_root, 'models', 'cub200_keypoint_resnet50_slim.pth')
     
-    def __init__(self, model_path: str = None):
+    def __init__(self, model_path: Optional[str] = None):
         """
         初始化关键点检测器
         
@@ -96,8 +112,8 @@ class KeypointDetector:
             model_path: 模型文件路径，默认使用自动检测的路径
         """
         self.model_path = model_path or self._get_default_model_path()
-        self.device = get_best_device()
-        self.model = None
+        self.device = torch.device(str(get_best_device()))
+        self.model: Optional[PartLocalizer] = None
         self.transform = transforms.Compose([
             transforms.Resize((self.IMG_SIZE, self.IMG_SIZE)),
             transforms.ToTensor(),
@@ -113,14 +129,18 @@ class KeypointDetector:
             raise FileNotFoundError(f"关键点模型不存在: {self.model_path}")
         
         self.model = PartLocalizer()
-        checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=True)
+        checkpoint = torch.load(
+            self.model_path,
+            map_location=self.device,
+            weights_only=True,
+        )
         
         if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
             self.model.load_state_dict(checkpoint['model_state_dict'])
         else:
             self.model.load_state_dict(checkpoint)
             
-        self.model.to(self.device)
+        self.model.to(device=self.device)
 
         if self.device.type in ('mps', 'cuda'):
             self.model = self.model.half()
@@ -130,8 +150,12 @@ class KeypointDetector:
 
         self.model.eval()
     
-    def detect(self, bird_crop: np.ndarray, box: Tuple[int, int, int, int] = None, 
-               seg_mask: np.ndarray = None) -> Optional[KeypointResult]:
+    def detect(
+        self,
+        bird_crop: np.ndarray,
+        box: Optional[Tuple[int, int, int, int]] = None,
+        seg_mask: Optional[np.ndarray] = None,
+    ) -> Optional[KeypointResult]:
         """
         检测鸟类关键点并计算头部锐度
         
@@ -149,10 +173,14 @@ class KeypointDetector:
             return None
 
         pil_crop = Image.fromarray(bird_crop)
-        tensor = self.transform(pil_crop).unsqueeze(0).to(self.device)
+        transformed_tensor = cast(torch.Tensor, self.transform(pil_crop))
+        tensor = transformed_tensor.unsqueeze(0).to(self.device)
 
         if hasattr(self, '_use_fp16') and self._use_fp16:
             tensor = tensor.half()
+
+        if self.model is None:
+            raise RuntimeError("关键点检测模型尚未初始化")
 
         with torch.inference_mode():
             coords, vis = self.model(tensor)
@@ -218,8 +246,8 @@ class KeypointDetector:
         left_eye_vis: float,
         right_eye_vis: float,
         beak_visible: bool,
-        box: Tuple[int, int, int, int] = None,
-        seg_mask: np.ndarray = None
+        box: Optional[Tuple[int, int, int, int]] = None,
+        seg_mask: Optional[np.ndarray] = None
     ) -> float:
         """
         计算头部区域锐度
@@ -230,7 +258,7 @@ class KeypointDetector:
             eye = left_eye if left_eye_vis >= right_eye_vis else right_eye
             eye_px = (int(eye[0] * w), int(eye[1] * h))
             beak_px = (int(beak[0] * w), int(beak[1] * h))
-            if beak_vis >= self.VISIBILITY_THRESHOLD:
+            if beak_visible:
                 radius = int(self._distance(eye_px, beak_px) * self.RADIUS_MULTIPLIER)
             elif box is not None:
                 box_size = max(box[2], box[3])
@@ -323,7 +351,7 @@ class KeypointDetector:
         return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
 
 
-_detector_instance = None
+_detector_instance: Optional[KeypointDetector] = None
 
 def get_keypoint_detector() -> KeypointDetector:
     """获取全局关键点检测器实例"""

@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-鸟类识别核心模块
-从 SuperBirdID 移植，提供鸟类检测与分类识别功能
+鸟类识别核心模块。
+Core bird-identification module.
+
+从 SuperBirdID 移植，负责鸟类检测、分类与离线资源路径兼容。
+Ported from SuperBirdID and responsible for bird detection, classification,
+and compatibility with offline resource paths.
 """
 
 __version__ = "1.0.0"
@@ -15,7 +19,7 @@ import cv2
 import io
 import os
 import sys
-from typing import Optional, List, Dict, Tuple, Set
+from typing import Any, Optional, List, Dict, Tuple, Set, cast
 from tools.i18n import t as _t
 from config import (
     get_best_device,
@@ -23,9 +27,12 @@ from config import (
     get_app_config_dir,
     get_install_scoped_resource_path,
     get_packaged_model_relative_path,
+    get_runtime_meipass,
 )
 
-CLASSIFIER_DEVICE = get_best_device()
+CLASSIFIER_DEVICE = torch.device(str(get_best_device()))
+
+RESAMPLING_LANCZOS = Image.Resampling.LANCZOS
 
 try:
     import rawpy
@@ -33,6 +40,8 @@ try:
 
     RAW_SUPPORT = True
 except ImportError:
+    rawpy = cast(Any, None)
+    imageio = cast(Any, None)
     RAW_SUPPORT = False
 
 try:
@@ -40,6 +49,7 @@ try:
 
     YOLO_AVAILABLE = True
 except ImportError:
+    YOLO = cast(Any, None)
     YOLO_AVAILABLE = False
 
 BIRDID_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -75,16 +85,38 @@ BIRDID_DIR = _find_birdid_dir()
 
 
 def get_birdid_path(relative_path: str) -> str:
+    """
+    返回 `birdid/` 目录下的资源路径。
+    Return a resource path under the `birdid/` directory.
+
+    Windows Lite 构建需要从安装目录 `_internal` 读取资源，其余冻结环境仍跟随
+    PyInstaller bundle 目录；源码环境则回退到仓库内的 `birdid/` 目录。
+    Windows Lite builds read from the install-scoped `_internal` tree, other
+    frozen builds still follow the PyInstaller bundle, and source runs fall back
+    to the repository `birdid/` directory.
+    """
     if getattr(sys, "frozen", False) and sys.platform == "win32":
         return str(
             get_install_scoped_resource_path(os.path.join("birdid", relative_path))
         )
     if getattr(sys, "frozen", False):
-        return os.path.join(sys._MEIPASS, "birdid", relative_path)
+        meipass = get_runtime_meipass()
+        if meipass is not None:
+            return os.path.join(meipass, "birdid", relative_path)
     return os.path.join(BIRDID_DIR, relative_path)
 
 
 def get_project_path(relative_path: str) -> str:
+    """
+    返回项目级资源路径。
+    Return a project-level resource path.
+
+    这里统一兼容 Windows Lite 安装目录、普通 PyInstaller bundle 与源码目录，
+    避免各调用方再自行拼接 `_MEIPASS` 路径。
+    This helper centralizes path selection for Windows Lite installs, regular
+    PyInstaller bundles, and source checkouts so callers do not rebuild
+    `_MEIPASS`-based paths themselves.
+    """
     if getattr(sys, "frozen", False) and sys.platform == "win32":
         packaged_relative_path = None
         if relative_path.startswith("models/"):
@@ -95,7 +127,9 @@ def get_project_path(relative_path: str) -> str:
             )
         )
     if getattr(sys, "frozen", False):
-        return os.path.join(sys._MEIPASS, relative_path)
+        meipass = get_runtime_meipass()
+        if meipass is not None:
+            return os.path.join(meipass, relative_path)
     return os.path.join(PROJECT_ROOT, relative_path)
 
 
@@ -158,7 +192,7 @@ def get_classifier():
             model = models.resnet34(num_classes=OSEA_NUM_CLASSES)
             state_dict = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
             model.load_state_dict(state_dict)
-            model = model.to(CLASSIFIER_DEVICE)
+            model = model.to(device=CLASSIFIER_DEVICE)
             model.eval()
             return model
 
@@ -178,7 +212,7 @@ def get_classifier():
         else:
             raise RuntimeError(f"未找到分类模型: {MODEL_PATH} 或 {MODEL_PATH_LEGACY}")
 
-        model = model.to(CLASSIFIER_DEVICE)
+        model = model.to(device=CLASSIFIER_DEVICE)
         model.eval()
         return model
 
@@ -238,7 +272,7 @@ def get_species_filter():
 
 
 class YOLOBirdDetector:
-    def __init__(self, model_path: str = None):
+    def __init__(self, model_path: Optional[str] = None):
         if not YOLO_AVAILABLE:
             self.model = None
             return
@@ -379,16 +413,23 @@ def load_image(image_path: str) -> Image.Image:
         if ext in heif_extensions:
             return _load_heif(image_path)
         if RAW_SUPPORT:
+            thumb_format_enum = getattr(rawpy, "ThumbFormat", None)
+            jpeg_thumb_format = getattr(thumb_format_enum, "JPEG", None)
+            bitmap_thumb_format = getattr(thumb_format_enum, "BITMAP", None)
+            rawpy_internal = getattr(rawpy, "_rawpy", None)
+            unsupported_error = getattr(
+                rawpy_internal, "LibRawFileUnsupportedError", None
+            )
             try:
                 with rawpy.imread(image_path) as raw:
                     try:
                         thumb = raw.extract_thumb()
-                        if thumb.format == rawpy.ThumbFormat.JPEG:
+                        if thumb.format == jpeg_thumb_format:
                             from io import BytesIO
 
                             img = Image.open(BytesIO(thumb.data)).convert("RGB")
                             return img
-                        elif thumb.format == rawpy.ThumbFormat.BITMAP:
+                        elif thumb.format == bitmap_thumb_format:
                             img = Image.fromarray(thumb.data).convert("RGB")
                             return img
                     except Exception as e:
@@ -403,9 +444,9 @@ def load_image(image_path: str) -> Image.Image:
                     )
                     img = Image.fromarray(rgb)
                     return img
-            except rawpy._rawpy.LibRawFileUnsupportedError:
-                return _load_raw_via_exiftool(image_path)
             except Exception as e:
+                if unsupported_error is not None and isinstance(e, unsupported_error):
+                    return _load_raw_via_exiftool(image_path)
                 raise Exception(f"RAW处理失败: {e}")
         else:
             raise ImportError("需要安装 rawpy 来处理 RAW 格式")
@@ -414,12 +455,18 @@ def load_image(image_path: str) -> Image.Image:
 
 
 def _load_raw_via_exiftool(image_path: str) -> Image.Image:
+    """
+    使用 ExifTool 从 RAW 文件提取可解码预览图。
+    Extract a decodable preview image from a RAW file via ExifTool.
+    """
     import subprocess
     from io import BytesIO
 
     possible_paths = []
     if getattr(sys, "frozen", False):
-        possible_paths.append(os.path.join(sys._MEIPASS, "exiftools_mac", "exiftool"))
+        meipass = get_runtime_meipass()
+        if meipass is not None:
+            possible_paths.append(os.path.join(meipass, "exiftools_mac", "exiftool"))
     possible_paths += [
         os.path.join(PROJECT_ROOT, "exiftools_mac", "exiftool"),
         "/opt/homebrew/bin/exiftool",
@@ -451,6 +498,8 @@ def _load_heif(image_path: str) -> Image.Image:
         import pillow_heif
 
         heif_file = pillow_heif.read_heif(image_path)
+        if heif_file.data is None:
+            raise ValueError("HEIF 解码结果缺少像素数据")
         img = Image.frombytes(
             heif_file.mode,
             heif_file.size,
@@ -576,7 +625,7 @@ def extract_gps_from_exif(
 
     try:
         image = Image.open(image_path)
-        exif_data = image._getexif()
+        exif_data = image.getexif()
 
         if not exif_data:
             return None, None, "无EXIF数据"
@@ -627,9 +676,9 @@ def smart_resize(image: Image.Image, target_size: int = 224) -> Image.Image:
     max_dim = max(width, height)
 
     if max_dim < 1000:
-        return image.resize((target_size, target_size), Image.LANCZOS)
+        return image.resize((target_size, target_size), RESAMPLING_LANCZOS)
 
-    resized = image.resize((256, 256), Image.LANCZOS)
+    resized = image.resize((256, 256), RESAMPLING_LANCZOS)
     left = (256 - target_size) // 2
     top = (256 - target_size) // 2
     return resized.crop((left, top, left + target_size, top + target_size))
@@ -674,7 +723,7 @@ def predict_bird(
     top_k: int = 5,
     species_class_ids: Optional[Set[int]] = None,
     is_yolo_cropped: bool = False,
-    name_format: str = None,
+    name_format: Optional[str] = None,
 ) -> List[Dict]:
     model = get_classifier()
     db_manager = get_database_manager()
@@ -682,7 +731,8 @@ def predict_bird(
     if image.mode != "RGB":
         image = image.convert("RGB")
     transform = OSEA_TRANSFORM_DIRECT if is_yolo_cropped else OSEA_TRANSFORM
-    input_tensor = transform(image).unsqueeze(0).to(CLASSIFIER_DEVICE)
+    transformed_tensor = cast(torch.Tensor, transform(image))
+    input_tensor = transformed_tensor.unsqueeze(0).to(CLASSIFIER_DEVICE)
 
     with torch.no_grad():
         output = model(input_tensor)[0]
@@ -773,11 +823,11 @@ def identify_bird(
     use_yolo: bool = True,
     use_gps: bool = True,
     use_ebird: bool = True,
-    country_code: str = None,
-    region_code: str = None,
+    country_code: Optional[str] = None,
+    region_code: Optional[str] = None,
     top_k: int = 5,
-    name_format: str = None,
-    preloaded_crop=None,
+    name_format: Optional[str] = None,
+    preloaded_crop: Optional[Image.Image] = None,
 ) -> Dict:
     result = {
         "success": False,
@@ -790,15 +840,13 @@ def identify_bird(
     }
 
     try:
+        is_yolo_cropped = False
         if preloaded_crop is not None:
             image = preloaded_crop
             is_yolo_cropped = True
             result["yolo_info"] = {"preloaded": True}
         else:
             image = load_image(image_path)
-
-        if preloaded_crop is None:
-            is_yolo_cropped = False
 
         if preloaded_crop is None and use_yolo and YOLO_AVAILABLE:
             width, height = image.size
