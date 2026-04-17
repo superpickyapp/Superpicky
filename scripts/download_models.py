@@ -1,3 +1,17 @@
+"""
+Model and resource download helpers for lightweight initialization.
+
+This module prepares model files and local fallback resources needed by the
+welcome onboarding flow. It emits structured progress events so callers can
+aggregate real byte progress, item-level progress, and source retry state
+without scraping ad-hoc log text.
+
+轻量化初始化所需的模型与资源下载辅助模块。
+
+此模块负责准备欢迎引导流程所需的模型文件与本地回退资源，并发出结构化进度事件，
+以便调用方能够聚合真实字节进度、条目级进度以及镜像重试状态，而不必再解析零散日志文本。
+"""
+
 import hashlib
 import importlib
 import logging
@@ -32,10 +46,21 @@ except ImportError:
     hf_hub_download = None
 
 try:
+    from tqdm.auto import tqdm as tqdm_base
+except ImportError:
+    tqdm_base = None
+
+try:
     from core.source_probe import pick_best_source, probe_sources
 except Exception:
     pick_best_source = None
     probe_sources = None
+
+from core.initialization_progress import (
+    InitializationProgressEvent,
+    PROGRESS_KIND_DOWNLOAD,
+    STAGE_DOWNLOADING,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -215,19 +240,40 @@ def resolve_download_plan(
     return plan
 
 
-def resolve_best_sources() -> Dict[str, str]:
-    endpoints = _resolve_hf_endpoints()
-    return {name: endpoint for name, endpoint in endpoints}
-
-
 def _emit_resource_progress(
-    progress_cb: Optional[Callable[[Dict[str, Any], float, str], None]],
-    resource: Dict[str, Any],
-    percent: float,
-    message: str,
+    progress_cb: Optional[Callable[[InitializationProgressEvent], None]],
+    event: InitializationProgressEvent,
 ) -> None:
     if progress_cb:
-        progress_cb(resource, percent, message)
+        progress_cb(event)
+
+
+def _build_resource_progress_event(
+    resource: Dict[str, Any],
+    message: str,
+    *,
+    ratio: float | None = None,
+    bytes_done: int | None = None,
+    bytes_total: int | None = None,
+    source: str | None = None,
+    is_terminal: bool = False,
+) -> InitializationProgressEvent:
+    """
+    Create a structured progress payload for one resource update.
+
+    为单个资源更新创建结构化进度负载。
+    """
+    return InitializationProgressEvent(
+        stage=STAGE_DOWNLOADING,
+        progress_kind=PROGRESS_KIND_DOWNLOAD,
+        message=message,
+        ratio=ratio,
+        bytes_done=bytes_done,
+        bytes_total=bytes_total,
+        resource_id=resource.get("resource_id"),
+        source=source,
+        is_terminal=is_terminal,
+    )
 
 
 def resolve_resource_destination_dir(project_root: Path, resource: Dict[str, Any]) -> Path:
@@ -240,15 +286,31 @@ def resolve_resource_destination_dir(project_root: Path, resource: Dict[str, Any
 def _copy_local_resource(
     resource: Dict[str, Any],
     project_root: Path,
-    progress_cb: Optional[Callable[[Dict[str, Any], float, str], None]] = None,
+    progress_cb: Optional[Callable[[InitializationProgressEvent], None]] = None,
 ) -> Optional[Path]:
+    """
+    Copy a packaged local fallback resource into the expected destination.
+
+    将打包时附带的本地回退资源复制到目标目录。
+    """
     filename = resource["filename"]
     dest_dir = resolve_resource_destination_dir(project_root, resource)
     dest_dir.mkdir(parents=True, exist_ok=True)
     destination = dest_dir / filename
 
     if destination.exists():
-        _emit_resource_progress(progress_cb, resource, 100.0, f"{filename} already present")
+        existing_size = destination.stat().st_size
+        _emit_resource_progress(
+            progress_cb,
+            _build_resource_progress_event(
+                resource,
+                f"{filename} already present",
+                ratio=1.0,
+                bytes_done=existing_size,
+                bytes_total=existing_size,
+                is_terminal=True,
+            ),
+        )
         return destination
 
     local_candidates = [
@@ -259,17 +321,153 @@ def _copy_local_resource(
         if candidate.exists():
             if candidate.resolve() != destination.resolve():
                 destination.write_bytes(candidate.read_bytes())
-            _emit_resource_progress(progress_cb, resource, 100.0, f"{filename} copied from local fallback")
+            copied_size = destination.stat().st_size
+            _emit_resource_progress(
+                progress_cb,
+                _build_resource_progress_event(
+                    resource,
+                    f"{filename} copied from local fallback",
+                    ratio=1.0,
+                    bytes_done=copied_size,
+                    bytes_total=copied_size,
+                    is_terminal=True,
+                ),
+            )
             return destination
     return None
 
 
+def _estimate_remote_file_size(repo_id: str, filename: str) -> int | None:
+    """
+    Estimate remote file size with `hf_hub_download(..., dry_run=True)`.
+
+    通过 `hf_hub_download(..., dry_run=True)` 估算远端文件大小。
+    """
+    global hf_hub_download
+    if hf_hub_download is None:
+        return None
+
+    for _source_name, endpoint in _resolve_hf_endpoints():
+        try:
+            _configure_hf_client_for_endpoint(endpoint)
+            dry_run_info = cast(
+                Any,
+                hf_hub_download(
+                    repo_id=repo_id,
+                    filename=filename,
+                    endpoint=endpoint,
+                    dry_run=True,
+                ),
+            )
+            file_size = getattr(dry_run_info, "file_size", None)
+            if isinstance(file_size, int) and file_size > 0:
+                return file_size
+        except Exception:
+            continue
+    return None
+
+
+def _build_download_tqdm_class(
+    resource: Dict[str, Any],
+    source_name: str,
+    expected_bytes: int | None,
+    progress_cb: Optional[Callable[[InitializationProgressEvent], None]],
+):
+    """
+    Create a tqdm subclass that forwards byte-level download updates.
+
+    创建一个把字节级下载更新转发为结构化事件的 tqdm 子类。
+    """
+    if progress_cb is None or tqdm_base is None:
+        return None
+
+    class ResourceDownloadTqdm(tqdm_base):
+        """
+        Progress tracker used internally by `hf_hub_download`.
+
+        `hf_hub_download` 内部使用的进度跟踪器。
+        """
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            total = getattr(self, "total", None) or expected_bytes
+            if isinstance(total, (int, float)) and total > 0:
+                total = int(total)
+            else:
+                total = expected_bytes
+            self._superpicky_total = total
+            self._superpicky_last_n = 0
+            _emit_resource_progress(
+                progress_cb,
+                _build_resource_progress_event(
+                    resource,
+                    f"{resource['filename']}: downloading from {source_name}",
+                    ratio=0.0 if total else None,
+                    bytes_done=0,
+                    bytes_total=total,
+                    source=source_name,
+                ),
+            )
+
+        def update(self, n=1):
+            result = super().update(n)
+            current = int(getattr(self, "n", self._superpicky_last_n))
+            total = getattr(self, "total", None) or self._superpicky_total
+            if isinstance(total, (int, float)) and total > 0:
+                total = int(total)
+                ratio = current / total
+            else:
+                total = None
+                ratio = None
+            self._superpicky_last_n = current
+            _emit_resource_progress(
+                progress_cb,
+                _build_resource_progress_event(
+                    resource,
+                    f"{resource['filename']}: downloading from {source_name}",
+                    ratio=ratio,
+                    bytes_done=current,
+                    bytes_total=total,
+                    source=source_name,
+                    is_terminal=bool(total and current >= total),
+                ),
+            )
+            return result
+
+        def close(self):
+            current = int(getattr(self, "n", self._superpicky_last_n))
+            total = getattr(self, "total", None) or self._superpicky_total
+            if isinstance(total, (int, float)) and total > 0:
+                total = int(total)
+                ratio = min(1.0, current / total)
+            else:
+                total = None
+                ratio = None
+            _emit_resource_progress(
+                progress_cb,
+                _build_resource_progress_event(
+                    resource,
+                    f"{resource['filename']}: download stream closed",
+                    ratio=ratio,
+                    bytes_done=current,
+                    bytes_total=total,
+                    source=source_name,
+                    is_terminal=bool(total and current >= total),
+                ),
+            )
+            return super().close()
+
+    return ResourceDownloadTqdm
+
+
 def _download_with_fallback(
+    resource: Dict[str, Any],
     repo_id: str,
     filename: str,
     full_dest_dir: str,
     *,
-    progress_cb: Optional[Callable[[str, float, str], None]] = None,
+    expected_bytes: int | None = None,
+    progress_cb: Optional[Callable[[InitializationProgressEvent], None]] = None,
 ) -> Optional[str]:
     """
     使用回退机制下载文件，支持重试和源切换。
@@ -280,7 +478,8 @@ def _download_with_fallback(
         repo_id (str): Hugging Face 仓库 ID
         filename (str): 要下载的文件名
         full_dest_dir (str): 目标目录路径
-        progress_cb (Optional[Callable[[str, float, str], None]]): 进度回调函数
+        expected_bytes (int | None): 预估文件大小
+        progress_cb (Optional[Callable[[InitializationProgressEvent], None]]): 进度回调函数
 
     返回 Returns:
         Optional[str]: 下载的文件路径，失败时返回 None
@@ -300,11 +499,20 @@ def _download_with_fallback(
 
     for index, (source_name, endpoint) in enumerate(endpoints):
         logging.info("尝试从 %s (%s) 下载 %s", source_name, endpoint, filename)
-        
+
         for retry_count in range(max_retries):
-            if progress_cb:
-                progress_cb(source_name, 5.0 + (index * 10.0), f"{filename}: 连接 {source_name} (尝试 {retry_count + 1}/{max_retries})")
-            
+            _emit_resource_progress(
+                progress_cb,
+                _build_resource_progress_event(
+                    resource,
+                    f"{filename}: connecting {source_name} ({retry_count + 1}/{max_retries})",
+                    ratio=0.0 if expected_bytes else None,
+                    bytes_done=0,
+                    bytes_total=expected_bytes,
+                    source=source_name,
+                ),
+            )
+
             start_time = time.perf_counter()
             try:
                 _configure_hf_client_for_endpoint(endpoint)
@@ -315,6 +523,14 @@ def _download_with_fallback(
                     "local_dir_use_symlinks": False,
                     "endpoint": endpoint,
                 }
+                tqdm_class = _build_download_tqdm_class(
+                    resource,
+                    source_name,
+                    expected_bytes,
+                    progress_cb,
+                )
+                if tqdm_class is not None:
+                    download_kwargs["tqdm_class"] = tqdm_class
                 try:
                     download_kwargs["resume_download"] = True
                 except Exception:
@@ -322,10 +538,22 @@ def _download_with_fallback(
 
                 downloaded_path = cast(Any, hf_hub_download)(**download_kwargs)
                 elapsed_time = time.perf_counter() - start_time
-                
-                if progress_cb:
-                    progress_cb(source_name, 100.0, f"{filename}: 通过 {source_name} 下载完成")
-                
+
+                path_obj = Path(downloaded_path)
+                file_size = path_obj.stat().st_size if path_obj.exists() else expected_bytes
+                _emit_resource_progress(
+                    progress_cb,
+                    _build_resource_progress_event(
+                        resource,
+                        f"{filename}: downloaded via {source_name}",
+                        ratio=1.0,
+                        bytes_done=file_size,
+                        bytes_total=file_size,
+                        source=source_name,
+                        is_terminal=True,
+                    ),
+                )
+
                 logging.info(
                     "%s 已通过 %s 下载完成，耗时 %.2f 秒",
                     filename,
@@ -348,9 +576,18 @@ def _download_with_fallback(
                     error_text,
                     elapsed_time
                 )
-                
-                if progress_cb:
-                    progress_cb(source_name, 0.0, f"{filename}: {source_name} 失败 (尝试 {retry_count + 1}/{max_retries})")
+
+                _emit_resource_progress(
+                    progress_cb,
+                    _build_resource_progress_event(
+                        resource,
+                        f"{filename}: {source_name} failed ({retry_count + 1}/{max_retries})",
+                        ratio=0.0 if expected_bytes else None,
+                        bytes_done=0,
+                        bytes_total=expected_bytes,
+                        source=source_name,
+                    ),
+                )
 
                 if retry_count < max_retries - 1:
                     base_delay = 2 ** retry_count
@@ -416,7 +653,7 @@ def download_resource(
     resource: Dict[str, Any],
     *,
     project_root: Optional[Path] = None,
-    progress_cb: Optional[Callable[[Dict[str, Any], float, str], None]] = None,
+    progress_cb: Optional[Callable[[InitializationProgressEvent], None]] = None,
 ) -> Path:
     """
     下载并验证资源文件。
@@ -426,7 +663,7 @@ def download_resource(
     参数 Parameters:
         resource (Dict[str, Any]): 资源元数据字典
         project_root (Optional[Path]): 项目根目录
-        progress_cb (Optional[Callable[[Dict[str, Any], float, str], None]]): 进度回调函数
+        progress_cb (Optional[Callable[[InitializationProgressEvent], None]]): 进度回调函数
 
     返回 Returns:
         Path: 下载的文件路径
@@ -455,17 +692,26 @@ def download_resource(
         filename,
         repo_id
     )
-    _emit_resource_progress(progress_cb, resource, 0.0, f"准备下载 {filename}")
+    expected_bytes = _estimate_remote_file_size(repo_id, filename)
+    _emit_resource_progress(
+        progress_cb,
+        _build_resource_progress_event(
+            resource,
+            f"Preparing download for {filename}",
+            ratio=0.0 if expected_bytes else None,
+            bytes_done=0,
+            bytes_total=expected_bytes,
+        ),
+    )
 
     download_start_time = time.perf_counter()
     downloaded_path = _download_with_fallback(
+        resource=resource,
         repo_id=repo_id,
         filename=filename,
         full_dest_dir=str(full_dest_dir),
-        progress_cb=(
-            lambda source_name, percent, message: progress_cb(resource, percent, message)
-            if progress_cb else None
-        ),
+        expected_bytes=expected_bytes,
+        progress_cb=progress_cb,
     )
     download_elapsed = time.perf_counter() - download_start_time
     
@@ -505,7 +751,17 @@ def download_resource(
         download_elapsed,
         file_size / (1024 * 1024)
     )
-    _emit_resource_progress(progress_cb, resource, 100.0, f"已验证 {filename}")
+    _emit_resource_progress(
+        progress_cb,
+        _build_resource_progress_event(
+            resource,
+            f"Validated {filename}",
+            ratio=1.0,
+            bytes_done=file_size,
+            bytes_total=file_size,
+            is_terminal=True,
+        ),
+    )
     return path_obj
 
 

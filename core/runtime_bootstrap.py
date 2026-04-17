@@ -38,11 +38,18 @@ def _ensure_utf8_stdio() -> None:
 
 
 def _build_pip_args(args: argparse.Namespace, site_packages_dir: Path) -> list[str]:
+    """
+    Build the pip command line for the packaged runtime bootstrap.
+
+    为打包运行时引导流程构建 pip 命令行参数。
+    """
     pip_args = [
         "install",
         "--disable-pip-version-check",
         "--no-warn-script-location",
         "--no-cache-dir",
+        "--progress-bar",
+        "raw",
         "--use-deprecated=legacy-certs",
         "--upgrade",
         "--target",

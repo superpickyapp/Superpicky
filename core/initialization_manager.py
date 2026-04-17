@@ -26,16 +26,22 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from PySide6.QtCore import QObject, Signal
 
 from advanced_config import get_advanced_config
 from config import (
     get_app_config_dir,
-    get_app_install_dir,
     get_app_internal_dir,
     get_bundled_resource_dir,
+)
+from core.initialization_progress import (
+    InitializationProgressEvent,
+    PROGRESS_KIND_RUNTIME,
+    STAGE_DOWNLOADING,
+    STAGE_PREPARING_RUNTIME,
+    parse_pip_raw_progress_line,
 )
 from core.runtime_requirements import get_runtime_requirements
 from core.source_probe import pick_best_source, probe_sources
@@ -68,12 +74,6 @@ MAC_TORCH_SOURCES = [
     {"name": "official", "url": "https://pypi.org/simple"},
 ]
 
-RUNTIME_REQUIREMENTS = {
-    "cpu": "requirements_runtime_cpu.txt",
-    "cuda": "requirements_runtime_cuda.txt",
-    "mac": "requirements_runtime_mac.txt",
-}
-
 FULL_FEATURE_SET = ("core_detection", "quality", "keypoint", "flight", "birdid")
 
 STAGE_NOT_STARTED = "not_started"
@@ -105,8 +105,32 @@ class RuntimeInstallLocation:
     writable: bool
 
 
+@dataclass
+class ResourceProgressState:
+    """
+    Aggregate state for one resource inside the download phase.
+
+    下载阶段中单个资源的聚合状态。
+    """
+
+    ratio: float = 0.0
+    bytes_done: int | None = None
+    bytes_total: int | None = None
+    is_terminal: bool = False
+    last_logged_bucket: int = -1
+    last_logged_message: str | None = None
+    last_logged_source: str | None = None
+
+
 class InitializationManager(QObject):
+    """
+    Coordinate runtime repair, resource preparation, and structured progress events.
+
+    负责协调运行时修复、资源准备以及结构化进度事件的初始化管理器。
+    """
+
     stage_changed = Signal(str, str)
+    progress_event = Signal(object)
     progress_changed = Signal(int, str, int, int)
     item_status_changed = Signal(str, str, str)
     finished = Signal(bool, object)
@@ -132,6 +156,8 @@ class InitializationManager(QObject):
         self._source_map: Dict[str, str] = {}
         self._cancel_requested = threading.Event()
         self._active_process: Optional[subprocess.Popen[str]] = None
+        self._resource_progress: dict[str, ResourceProgressState] = {}
+        self._resource_progress_item_count = 0
 
         self._ensure_hf_endpoint_configured()
         logging.info("初始化管理器已创建，项目根目录: %s", self._project_root)
@@ -177,7 +203,7 @@ class InitializationManager(QObject):
 
     def _resolve_runtime_requirements_path(self, runtime_variant: str) -> Path:
         """Resolve runtime requirements file path for backward compatibility."""
-        requirements = get_runtime_requirements(runtime_variant)
+        requirements = get_runtime_requirements(runtime_variant) # pyright: ignore[reportArgumentType]
         requirements_content = requirements.to_requirements_string()
 
         temp_file = tempfile.NamedTemporaryFile(
@@ -226,6 +252,23 @@ class InitializationManager(QObject):
 
     def _emit_item_status(self, resource_id: str, status: str, detail: str) -> None:
         self.item_status_changed.emit(resource_id, status, detail)
+
+    def _emit_progress_event(self, event: InitializationProgressEvent) -> None:
+        """
+        Emit the new structured progress event and the deprecated legacy signal.
+
+        发出新的结构化进度事件，并兼容发出旧版信号。
+        """
+        self.progress_event.emit(event)
+        ratio = event.normalized_ratio()
+        if ratio is None:
+            return
+        self.progress_changed.emit(
+            int(round(ratio * 100.0)),
+            event.message,
+            event.item_index or 0,
+            event.item_count or 0,
+        )
 
     def _installation_root(self) -> Path:
         if getattr(sys, "frozen", False):
@@ -504,6 +547,10 @@ class InitializationManager(QObject):
             logging.info("所有资源已就绪，无需修复")
             return False
 
+        self._resource_progress = {
+            item["resource_id"]: ResourceProgressState() for item in pending
+        }
+        self._resource_progress_item_count = total_items
         logging.info("需要修复 %d 个资源文件", len(pending))
         self._emit_stage(STAGE_DOWNLOADING, "Downloading required resources...")
 
@@ -522,7 +569,7 @@ class InitializationManager(QObject):
                 download_resource(
                     resource,
                     project_root=self._project_root,
-                    progress_cb=self._resource_progress_cb(index, total_items),
+                    progress_cb=self._resource_progress_cb(index, total_items, resource_id),
                 )
                 success_count += 1
                 self._emit_item_status(resource_id, "done", f"{label} ready")
@@ -666,13 +713,145 @@ class InitializationManager(QObject):
             self._emit_stage(STAGE_FAILED, str(exc))
             self.finished.emit(False, {"error": str(exc), "mode": mode})
 
-    def _resource_progress_cb(self, item_index: int, total_items: int):
-        def _callback(resource: dict, percent: float, message: str) -> None:
-            overall = int((((item_index - 1) + (percent / 100.0)) / total_items) * 100)
-            self.progress_changed.emit(overall, message, item_index - 1, total_items)
-            self._emit_item_status(resource["resource_id"], "progress", message)
+    def _resource_progress_cb(
+        self,
+        item_index: int,
+        total_items: int,
+        fallback_resource_id: str,
+    ):
+        """
+        Adapt per-resource download events into one aggregated download stream.
+
+        将单个资源的下载事件适配为统一的聚合下载进度流。
+        """
+
+        def _callback(event: InitializationProgressEvent) -> None:
+            resource_id = event.resource_id or fallback_resource_id
+            enriched_event = InitializationProgressEvent(
+                stage=event.stage,
+                progress_kind=event.progress_kind,
+                message=event.message,
+                ratio=event.ratio,
+                bytes_done=event.bytes_done,
+                bytes_total=event.bytes_total,
+                item_index=item_index - 1,
+                item_count=total_items,
+                resource_id=resource_id,
+                source=event.source,
+                is_terminal=event.is_terminal,
+            )
+            aggregate_event = self._update_resource_aggregate(enriched_event)
+            if self._should_emit_resource_log(enriched_event):
+                self._emit_item_status(resource_id, "progress", enriched_event.message)
+            self._emit_progress_event(aggregate_event)
 
         return _callback
+
+    def _update_resource_aggregate(
+        self,
+        event: InitializationProgressEvent,
+    ) -> InitializationProgressEvent:
+        """
+        Fold one resource event into the cross-resource aggregate download ratio.
+
+        将单个资源事件折叠到跨资源的聚合下载进度中。
+        """
+        resource_id = event.resource_id or f"resource-{len(self._resource_progress)}"
+        ratio = event.normalized_ratio()
+        bytes_total = event.bytes_total if event.bytes_total and event.bytes_total > 0 else None
+
+        state = self._resource_progress.get(resource_id)
+        if state is None:
+            state = ResourceProgressState()
+            self._resource_progress[resource_id] = state
+
+        if ratio is not None:
+            state.ratio = max(state.ratio, ratio)
+        elif event.is_terminal:
+            state.ratio = 1.0
+
+        if event.bytes_done is not None:
+            state.bytes_done = max(state.bytes_done or 0, event.bytes_done)
+        if bytes_total is not None:
+            state.bytes_total = max(state.bytes_total or 0, bytes_total)
+        state.is_terminal = state.is_terminal or event.is_terminal or state.ratio >= 1.0
+
+        total_items = max(1, self._resource_progress_item_count or len(self._resource_progress))
+        completed_ratio_sum = sum(item.ratio for item in self._resource_progress.values())
+        overall_ratio = completed_ratio_sum / total_items
+
+        known_total = 0
+        known_done = 0
+        all_have_bytes = bool(self._resource_progress)
+        for item in self._resource_progress.values():
+            if item.bytes_total is None:
+                all_have_bytes = False
+                continue
+            known_total += item.bytes_total
+            known_done += min(item.bytes_done or 0, item.bytes_total)
+
+        aggregate_terminal = (
+            len(self._resource_progress) >= self._resource_progress_item_count
+            and all(item.is_terminal for item in self._resource_progress.values())
+        )
+        return InitializationProgressEvent(
+            stage=STAGE_DOWNLOADING,
+            progress_kind=event.progress_kind,
+            message=event.message,
+            ratio=min(1.0, max(0.0, overall_ratio)),
+            bytes_done=known_done if all_have_bytes else None,
+            bytes_total=known_total if all_have_bytes else None,
+            item_index=event.item_index,
+            item_count=event.item_count,
+            resource_id=event.resource_id,
+            source=event.source,
+            is_terminal=aggregate_terminal,
+        )
+
+    def _should_emit_resource_log(self, event: InitializationProgressEvent) -> bool:
+        """
+        Throttle noisy per-byte download events into human-readable milestone logs.
+
+        将高频字节级下载事件节流为更适合阅读的里程碑日志。
+        """
+        resource_id = event.resource_id
+        if not resource_id:
+            return False
+
+        state = self._resource_progress.get(resource_id)
+        if state is None:
+            return True
+
+        ratio = event.normalized_ratio()
+        message = event.message
+        source_changed = bool(event.source and event.source != state.last_logged_source)
+        terminal_message = event.is_terminal or any(
+            token in message.lower()
+            for token in ("failed", "validated", "downloaded", "already present", "copied from local fallback")
+        )
+
+        should_log = False
+        if state.last_logged_message is None:
+            should_log = True
+        elif terminal_message or source_changed:
+            should_log = True
+        elif ratio is not None:
+            bucket = min(10, int(ratio * 10.0))
+            if bucket > state.last_logged_bucket:
+                should_log = True
+        elif message != state.last_logged_message:
+            should_log = True
+
+        if should_log:
+            if ratio is not None:
+                state.last_logged_bucket = max(
+                    state.last_logged_bucket,
+                    min(10, int(ratio * 10.0)),
+                )
+            state.last_logged_message = message
+            state.last_logged_source = event.source or state.last_logged_source
+
+        return should_log
 
     def _emit_stage(self, stage: str, message: str) -> None:
         self.stage_changed.emit(stage, message)
@@ -744,6 +923,11 @@ class InitializationManager(QObject):
         return fallback.url if fallback else primary_url
 
     def _prepare_runtime(self, runtime_variant: str) -> None:
+        """
+        Create or repair the runtime environment for the selected variant.
+
+        为当前选择的运行时变体创建或修复运行环境。
+        """
         if self._uses_bundled_runtime():
             raise RuntimeError(
                 "Bundled macOS Lite Torch runtime is unavailable; runtime installation is disabled."
@@ -770,6 +954,8 @@ class InitializationManager(QObject):
             str(pip_executable),
             "install",
             "--no-cache-dir",
+            "--progress-bar",
+            "raw",
             "-r",
             str(requirements_file),
             "-i",
@@ -783,7 +969,12 @@ class InitializationManager(QObject):
                 install_cmd.extend(
                     ["--extra-index-url", self._source_map["torch_fallback"]]
                 )
-        self._run_subprocess(install_cmd, f"Install {runtime_variant} runtime")
+        self._run_subprocess(
+            install_cmd,
+            f"Install {runtime_variant} runtime",
+            progress_stage=STAGE_PREPARING_RUNTIME,
+            progress_kind=PROGRESS_KIND_RUNTIME,
+        )
         self._inject_runtime_site_packages()
         self._verify_runtime_import(runtime_variant)
 
@@ -839,11 +1030,28 @@ class InitializationManager(QObject):
                     ["--extra-index-url", self._source_map["torch_fallback"]]
                 )
 
-        self._run_subprocess(command, f"Install {runtime_variant} runtime")
+        self._run_subprocess(
+            command,
+            f"Install {runtime_variant} runtime",
+            progress_stage=STAGE_PREPARING_RUNTIME,
+            progress_kind=PROGRESS_KIND_RUNTIME,
+        )
         self._inject_runtime_site_packages()
         self._verify_runtime_import(runtime_variant)
 
-    def _run_subprocess(self, command: list[str], label: str) -> None:
+    def _run_subprocess(
+        self,
+        command: list[str],
+        label: str,
+        *,
+        progress_stage: str | None = None,
+        progress_kind: str | None = None,
+    ) -> None:
+        """
+        Run a subprocess while forwarding structured progress updates when possible.
+
+        运行子进程，并在可能时转发结构化进度更新。
+        """
         popen_kwargs = {
             "stdout": subprocess.PIPE,
             "stderr": subprocess.STDOUT,
@@ -856,18 +1064,52 @@ class InitializationManager(QObject):
 
         process = subprocess.Popen(command, **popen_kwargs)
         self._active_process = process
+        latest_progress_bytes: tuple[int, int | None] | None = None
         try:
             assert process.stdout is not None
             for line in process.stdout:
                 self._raise_if_cancelled()
                 text = line.strip()
                 if text:
+                    parsed = parse_pip_raw_progress_line(text)
+                    if (
+                        parsed is not None
+                        and progress_stage is not None
+                        and progress_kind is not None
+                    ):
+                        current, total = parsed
+                        latest_progress_bytes = (current, total if total > 0 else None)
+                        self._emit_progress_event(
+                            InitializationProgressEvent(
+                                stage=progress_stage,
+                                progress_kind=progress_kind,
+                                message=f"{label}: raw progress {current}/{total}",
+                                ratio=(current / total) if total > 0 else None,
+                                bytes_done=current,
+                                bytes_total=total if total > 0 else None,
+                            )
+                        )
+                        continue
                     self.item_status_changed.emit("runtime", "progress", f"{label}: {text}")
             return_code = process.wait()
             if self._cancel_requested.is_set():
                 raise InitializationInterrupted("Initialization interrupted by user")
             if return_code != 0:
                 raise RuntimeError(f"{label} failed with exit code {return_code}")
+            if progress_stage is not None and progress_kind is not None:
+                done_bytes = latest_progress_bytes[0] if latest_progress_bytes else None
+                total_bytes = latest_progress_bytes[1] if latest_progress_bytes else None
+                self._emit_progress_event(
+                    InitializationProgressEvent(
+                        stage=progress_stage,
+                        progress_kind=progress_kind,
+                        message=f"{label} completed",
+                        ratio=1.0,
+                        bytes_done=total_bytes or done_bytes,
+                        bytes_total=total_bytes,
+                        is_terminal=True,
+                    )
+                )
         finally:
             self._active_process = None
 

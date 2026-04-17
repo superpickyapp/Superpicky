@@ -1,6 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-SuperPicky - 首次启动欢迎向导 + 初始化流程
+SuperPicky onboarding and initialization dialogs.
+
+This module contains the first-run welcome wizard, the environment repair
+dialog, and the lightweight Qt widgets that render initialization progress.
+The actual long-task animation policy lives in `core.initialization_progress`
+so the GUI layer stays thin and testable.
+
+SuperPicky 首次启动欢迎向导与初始化对话框。
+
+此模块包含首次运行欢迎向导、环境修复对话框，以及负责渲染初始化进度的轻量 Qt 组件。
+实际的长任务动画策略位于 `core.initialization_progress`，从而保持 GUI 层足够薄且可测试。
 """
 
 import os
@@ -9,7 +19,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol, cast
 
-from PySide6.QtCore import Qt, QObject, QTimer, Signal, QEasingCurve
+from PySide6.QtCore import Qt, QObject, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
@@ -30,6 +40,10 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from advanced_config import get_advanced_config
+from core.initialization_progress import (
+    InitializationProgressEvent,
+    InitializationProgressModel,
+)
 from core.initialization_manager import InitializationManager
 from ui.custom_dialogs import StyledMessageBox
 from ui.skill_level_dialog import SkillLevelCard
@@ -310,11 +324,18 @@ class RoundedProgressBar(QWidget):
 
 
 class InitializationProgressBinder(QObject):
-    RUNTIME_PHASE_MAX = 30
-    DOWNLOAD_PHASE_MAX = 100
-    RUNTIME_SIM_DURATION_SECONDS = 60.0
-    DOWNLOAD_SIM_DURATION_SECONDS = 36.0
-    MIN_VISIBLE_PROGRESS = 4
+    """
+    Thin Qt adapter that renders structured initialization progress events.
+
+    将结构化初始化进度事件渲染到 Qt 控件上的薄适配层。
+
+    The binder owns no hard-coded timing policy. Instead, it forwards stage
+    changes and progress events into the shared pure-Python model and only
+    handles Qt timer scheduling plus success/failure callbacks.
+
+    该适配层不再持有硬编码的时间策略，而是把阶段变化与进度事件转发给共享的纯 Python 模型，
+    自身只负责 Qt 定时器调度以及成功/失败回调。
+    """
 
     def __init__(
         self,
@@ -328,80 +349,87 @@ class InitializationProgressBinder(QObject):
         parent=None,
     ):
         super().__init__(parent)
+        self._manager = manager
         self._set_stage_text = set_stage_text
         self._set_progress_value = set_progress_value
         self._append_log = append_log
         self._on_success = on_success
         self._on_failure = on_failure
-        self._display_progress = 0
-        self._runtime_phase_active = False
-        self._download_phase_active = False
-        self._download_actual_progress = 0
-        self._runtime_phase_started_at = 0.0
-        self._download_phase_started_at = 0.0
+        self._model = InitializationProgressModel()
+        self._pending_success_summary: object | None = None
         self._progress_timer = QTimer(self)
         self._progress_timer.setInterval(80)
         self._progress_timer.timeout.connect(self._advance_progress_animation)
-        self._runtime_curve = QEasingCurve(QEasingCurve.Type.OutCubic)
-        self._download_curve = QEasingCurve(QEasingCurve.Type.InOutCubic)
         manager.stage_changed.connect(self._handle_stage_changed)
-        manager.progress_changed.connect(self._handle_progress_changed)
+        manager.progress_event.connect(self._handle_progress_event)
         manager.item_status_changed.connect(self._handle_item_status_changed)
         manager.finished.connect(self._handle_finished)
 
     def reset(self) -> None:
-        self._runtime_phase_active = False
-        self._download_phase_active = False
-        self._download_actual_progress = 0
-        self._runtime_phase_started_at = 0.0
-        self._download_phase_started_at = 0.0
-        self._display_progress = 0
+        """
+        Clear the current animation state before a new run begins.
+
+        在新一轮初始化开始前清空当前动画状态。
+        """
+        self._pending_success_summary = None
+        self._model.reset(time.monotonic())
         self._progress_timer.stop()
-        self._push_progress(0)
+        self._push_progress(self._model.snapshot().display_percent)
 
     def _push_progress(self, value: int) -> None:
-        normalized = max(0, min(100, value))
-        if 0 < normalized < self.MIN_VISIBLE_PROGRESS:
-            normalized = self.MIN_VISIBLE_PROGRESS
-        self._display_progress = normalized
-        self._set_progress_value(normalized)
+        """
+        Clamp and forward the displayed progress to the bound widget.
 
-    def _start_runtime_phase(self) -> None:
-        self._runtime_phase_active = True
-        self._download_phase_active = False
-        self._runtime_phase_started_at = time.monotonic()
-        self._push_progress(0)
-        self._progress_timer.start()
+        夹紧并转发显示进度到绑定控件。
+        """
+        self._set_progress_value(max(0, min(100, value)))
 
-    def _start_download_phase(self) -> None:
-        if self._download_phase_active:
+    def _apply_snapshot(self, *, now: float | None = None) -> None:
+        """
+        Advance the pure-Python model and render its latest snapshot.
+
+        推进纯 Python 模型并渲染其最新快照。
+        """
+        snapshot = self._model.advance(time.monotonic() if now is None else now)
+        self._progress_timer.setInterval(snapshot.suggested_interval_ms)
+        self._push_progress(snapshot.display_percent)
+
+        if self._pending_success_summary is not None and snapshot.is_settled:
+            summary = self._pending_success_summary
+            self._pending_success_summary = None
+            self._progress_timer.stop()
+            self._on_success(summary)
             return
-        self._runtime_phase_active = False
-        self._download_phase_active = True
-        self._download_actual_progress = max(0, self._download_actual_progress)
-        self._download_phase_started_at = time.monotonic()
-        self._push_progress(max(self._display_progress, self.RUNTIME_PHASE_MAX))
-        self._progress_timer.start()
 
-    def _stop_progress_animation(self) -> None:
-        self._runtime_phase_active = False
-        self._download_phase_active = False
-        self._progress_timer.stop()
+        if snapshot.is_finishing or snapshot.active_phase is not None:
+            if not self._progress_timer.isActive():
+                self._progress_timer.start()
+            return
+
+        if self._progress_timer.isActive():
+            self._progress_timer.stop()
 
     def _handle_stage_changed(self, stage: str, message: str) -> None:
+        """
+        Update the stage label and synchronize the animation model.
+
+        更新阶段标签并同步动画模型。
+        """
+        now = time.monotonic()
         self._set_stage_text(message)
         self._append_log(f"[{stage}] {message}")
-        if stage == "preparing_runtime":
-            self._start_runtime_phase()
-        elif stage == "downloading_resources":
-            self._start_download_phase()
-        elif stage in {"verifying", "ready", "failed"}:
-            self._stop_progress_animation()
+        self._model.on_stage_changed(stage, now)
+        self._apply_snapshot(now=now)
 
-    def _handle_progress_changed(self, percent: int, _current_item: str, _done: int, _total: int) -> None:
-        self._start_download_phase()
-        self._download_actual_progress = max(0, min(100, percent))
-        self._advance_progress_animation()
+    def _handle_progress_event(self, event: InitializationProgressEvent) -> None:
+        """
+        Feed a structured progress event into the shared animation model.
+
+        将结构化进度事件送入共享动画模型。
+        """
+        now = time.monotonic()
+        self._model.on_progress_event(event, now)
+        self._apply_snapshot(now=now)
 
     def _handle_item_status_changed(self, resource_id: str, status: str, detail: str) -> None:
         if resource_id in {"updates", "runtime"}:
@@ -410,43 +438,24 @@ class InitializationProgressBinder(QObject):
         self._append_log(f"{resource_id} [{status}] {detail}")
 
     def _handle_finished(self, success: bool, summary: object) -> None:
-        self._stop_progress_animation()
+        """
+        Start the success settle animation or fail immediately.
+
+        成功时启动收尾动画，失败时立即结束。
+        """
+        now = time.monotonic()
         if success:
-            self._push_progress(100)
-            self._on_success(summary)
+            self._pending_success_summary = summary
+            self._model.on_finished(True, now)
+            self._apply_snapshot(now=now)
             return
+        self._pending_success_summary = None
+        self._progress_timer.stop()
         self._on_failure(summary)
 
     def _advance_progress_animation(self) -> None:
-        if self._runtime_phase_active:
-            self._advance_runtime_phase()
-            return
-        if self._download_phase_active:
-            self._advance_download_phase()
-            return
-        self._progress_timer.stop()
-
-    def _advance_runtime_phase(self) -> None:
-        elapsed = max(0.0, time.monotonic() - self._runtime_phase_started_at)
-        progress_ratio = min(1.0, elapsed / self.RUNTIME_SIM_DURATION_SECONDS)
-        simulated = int(self._runtime_curve.valueForProgress(progress_ratio) * self.RUNTIME_PHASE_MAX)
-        self._push_progress(max(self._display_progress, simulated))
-        if progress_ratio >= 1.0:
-            self._runtime_phase_active = False
-            if not self._download_phase_active:
-                self._progress_timer.stop()
-
-    def _advance_download_phase(self) -> None:
-        elapsed = max(0.0, time.monotonic() - self._download_phase_started_at)
-        progress_ratio = min(1.0, elapsed / self.DOWNLOAD_SIM_DURATION_SECONDS)
-        simulated_tail = int(self._download_curve.valueForProgress(progress_ratio) * (self.DOWNLOAD_PHASE_MAX - self.RUNTIME_PHASE_MAX))
-        simulated = self.RUNTIME_PHASE_MAX + simulated_tail
-        actual = self.RUNTIME_PHASE_MAX + int(self._download_actual_progress * 0.7)
-        combined = max(self._display_progress, simulated, actual)
-        self._push_progress(combined)
-        if progress_ratio >= 1.0 and self._download_actual_progress >= 100:
-            self._download_phase_active = False
-            self._progress_timer.stop()
+        """Advance the animation from the Qt timer tick."""
+        self._apply_snapshot()
 
 
 class EnvironmentRepairDialog(QDialog):
