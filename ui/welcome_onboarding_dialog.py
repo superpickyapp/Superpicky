@@ -275,11 +275,17 @@ class StatusBulletLabel(QLabel):
 
 
 class RoundedProgressBar(QWidget):
+    """
+    Lightweight rounded progress bar with floating-point fill support.
+
+    支持浮点填充进度的轻量圆角进度条。
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._minimum = 0
         self._maximum = 100
-        self._value = 0
+        self._value = 0.0
         self.setMinimumHeight(14)
 
     def setRange(self, minimum: int, maximum: int) -> None:
@@ -287,9 +293,14 @@ class RoundedProgressBar(QWidget):
         self._maximum = max(minimum + 1, maximum)
         self.update()
 
-    def setValue(self, value: int) -> None:
-        bounded = max(self._minimum, min(self._maximum, value))
-        if bounded == self._value:
+    def setValue(self, value: float) -> None:
+        """
+        Update the rendered progress value with sub-percent precision.
+
+        使用亚百分比精度更新渲染进度值。
+        """
+        bounded = float(max(self._minimum, min(self._maximum, value)))
+        if abs(bounded - self._value) < 0.02:
             return
         self._value = bounded
         self.update()
@@ -357,8 +368,11 @@ class InitializationProgressBinder(QObject):
         self._on_failure = on_failure
         self._model = InitializationProgressModel()
         self._pending_success_summary: object | None = None
+        self._desired_progress = 0.0
+        self._rendered_progress = 0.0
+        self._last_animation_tick = time.monotonic()
         self._progress_timer = QTimer(self)
-        self._progress_timer.setInterval(80)
+        self._progress_timer.setInterval(16)
         self._progress_timer.timeout.connect(self._advance_progress_animation)
         manager.stage_changed.connect(self._handle_stage_changed)
         manager.progress_event.connect(self._handle_progress_event)
@@ -372,17 +386,23 @@ class InitializationProgressBinder(QObject):
         在新一轮初始化开始前清空当前动画状态。
         """
         self._pending_success_summary = None
-        self._model.reset(time.monotonic())
+        now = time.monotonic()
+        self._model.reset(now)
+        self._desired_progress = 0.0
+        self._rendered_progress = 0.0
+        self._last_animation_tick = now
         self._progress_timer.stop()
-        self._push_progress(self._model.snapshot().display_percent)
+        self._push_progress(0.0)
 
-    def _push_progress(self, value: int) -> None:
+    def _push_progress(self, value: float) -> None:
         """
         Clamp and forward the displayed progress to the bound widget.
 
         夹紧并转发显示进度到绑定控件。
         """
-        self._set_progress_value(max(0, min(100, value)))
+        clamped = max(0.0, min(100.0, value))
+        self._rendered_progress = clamped
+        self._set_progress_value(clamped)
 
     def _apply_snapshot(self, *, now: float | None = None) -> None:
         """
@@ -391,10 +411,10 @@ class InitializationProgressBinder(QObject):
         推进纯 Python 模型并渲染其最新快照。
         """
         snapshot = self._model.advance(time.monotonic() if now is None else now)
-        self._progress_timer.setInterval(snapshot.suggested_interval_ms)
-        self._push_progress(snapshot.display_percent)
+        self._desired_progress = snapshot.display_value
 
         if self._pending_success_summary is not None and snapshot.is_settled:
+            self._push_progress(100.0)
             summary = self._pending_success_summary
             self._pending_success_summary = None
             self._progress_timer.stop()
@@ -403,6 +423,7 @@ class InitializationProgressBinder(QObject):
 
         if snapshot.is_finishing or snapshot.active_phase is not None:
             if not self._progress_timer.isActive():
+                self._last_animation_tick = time.monotonic() if now is None else now
                 self._progress_timer.start()
             return
 
@@ -454,8 +475,32 @@ class InitializationProgressBinder(QObject):
         self._on_failure(summary)
 
     def _advance_progress_animation(self) -> None:
-        """Advance the animation from the Qt timer tick."""
-        self._apply_snapshot()
+        """
+        Advance the animation from the Qt timer tick with smooth interpolation.
+
+        以平滑插值方式推进每一帧动画。
+        """
+        now = time.monotonic()
+        self._apply_snapshot(now=now)
+
+        dt = max(0.001, now - self._last_animation_tick)
+        self._last_animation_tick = now
+        delta = self._desired_progress - self._rendered_progress
+        if abs(delta) < 0.015:
+            self._push_progress(self._desired_progress)
+            if self._pending_success_summary is None and self._desired_progress >= 99.999:
+                self._progress_timer.stop()
+            return
+
+        # Use critically damped tracking: larger gaps move faster, small gaps ease in.
+        # This removes the stair-step feel of integer updates while preserving monotonicity.
+        # 使用接近临界阻尼的追踪方式：差距大时移动更快，差距小时自然缓入，
+        # 从而消除整数跳格的顿挫感，同时保持单调前进。
+        smoothing = 1.0 - pow(0.0025, dt)
+        min_step = 0.045 + min(0.18, abs(delta) * 0.12)
+        step = max(min_step, abs(delta) * smoothing)
+        next_value = self._rendered_progress + min(abs(delta), step)
+        self._push_progress(min(next_value, self._desired_progress))
 
 
 class EnvironmentRepairDialog(QDialog):

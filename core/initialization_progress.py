@@ -91,6 +91,9 @@ class ProgressSnapshot:
     display_percent: int
     actual_percent: int
     target_percent: int
+    display_value: float
+    actual_value: float
+    target_value: float
     active_phase: str | None
     is_finishing: bool
     is_settled: bool
@@ -317,6 +320,9 @@ class InitializationProgressModel:
             display_percent=max(0, min(100, display_percent)),
             actual_percent=max(0, min(100, actual_percent)),
             target_percent=max(0, min(100, target_percent)),
+            display_value=max(0.0, min(100.0, self._display_percent)),
+            actual_value=max(0.0, min(100.0, self._actual_percent)),
+            target_value=max(0.0, min(100.0, self._target_percent)),
             active_phase=self._active_phase,
             is_finishing=self._finish_started_at is not None and not self._settled,
             is_settled=self._settled,
