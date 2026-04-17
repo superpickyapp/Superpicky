@@ -23,10 +23,11 @@ from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-try:
-    import torch
-except Exception:
-    torch = None
+# Torch is intentionally imported lazily.
+# macOS Lite frozen builds bundle Torch inside the app, and importing it at
+# module-load time makes it easier to bind to a wrong partial path before the
+# frozen runtime is fully settled.
+torch = None
 
 
 class _FallbackDevice:

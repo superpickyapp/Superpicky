@@ -71,9 +71,9 @@ class BuildConfig:
 
 def configure_logging(debug: bool) -> None:
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="strict")
+        sys.stdout.reconfigure(encoding="utf-8", errors="strict") # pyright: ignore[reportAttributeAccessIssue]
     if hasattr(sys.stderr, "reconfigure"):
-        sys.stderr.reconfigure(encoding="utf-8", errors="strict")
+        sys.stderr.reconfigure(encoding="utf-8", errors="strict") # pyright: ignore[reportAttributeAccessIssue]
 
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     logger.propagate = False
@@ -93,13 +93,17 @@ def log_step(title: str) -> None:
     logger.info("[========================================]")
 
 
+def log_verbose(message: str, *args) -> None:
+    logger.debug(message, *args)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="SuperPicky Windows 构建脚本")
     parser.add_argument(
         "--build-type",
         choices=["cpu", "cuda", "cuda-patch", "lite"],
-        default="cpu",
-        help="构建类型：cpu, cuda, cuda-patch, lite (默认: cpu)",
+        default="lite",
+        help="构建类型：cpu, cuda, cuda-patch, lite (默认: lite)",
     )
     parser.add_argument("--version", help="覆盖基础版本号，例如 4.2.0")
     parser.add_argument("--copy-dir", help="复制最终产物的目标目录")
@@ -194,7 +198,7 @@ def load_required_models() -> list[dict[str, str]]:
                 break
         if models is None:
             raise RuntimeError("download_models.py 中未找到 MODELS_TO_DOWNLOAD")
-        logger.info("[成功] 已从 download_models.py 加载模型列表")
+        log_verbose("[成功] 已从 download_models.py 加载模型列表")
         return [{"filename": item["filename"], "dest_dir": item["dest_dir"]} for item in models]
     except BaseException as exc:
         if isinstance(exc, KeyboardInterrupt):
@@ -219,7 +223,7 @@ def ensure_models(python_exe: Path) -> None:
     log_step("步骤 0: 检查并下载模型文件")
     missing = find_missing_models()
     if not missing:
-        logger.info("[成功] 所有模型文件已就绪")
+        log_verbose("[成功] 所有模型文件已就绪")
         return
 
     logger.warning("缺失 %d 个模型文件，开始下载", len(missing))
@@ -234,7 +238,7 @@ def ensure_models(python_exe: Path) -> None:
             logger.error("仍然缺失: %s", path)
         raise RuntimeError("模型下载后仍有缺失")
 
-    logger.info("[成功] 所有模型文件已就绪")
+    log_verbose("[成功] 所有模型文件已就绪")
 
 
 def read_app_version() -> str:
@@ -282,7 +286,7 @@ def inject_build_info(commit_hash: str, release_channel: str = "official") -> Pa
         count=1,
     )
     BUILD_INFO_FILE.write_text(updated, encoding="utf-8")
-    logger.info("[成功] 已写入 COMMIT_HASH=%s RELEASE_CHANNEL=%s", commit_hash, release_channel)
+    log_verbose("[成功] 已写入 COMMIT_HASH=%s RELEASE_CHANNEL=%s", commit_hash, release_channel)
     return backup_path
 
 
@@ -301,13 +305,14 @@ def ensure_spec_file(build_type: str) -> None:
     spec_file = spec_file_for(build_type)
     if not spec_file.exists():
         raise FileNotFoundError(f"缺少 spec 文件: {spec_file}")
+    log_verbose("[信息] %s 构建将使用 spec: %s", build_type, spec_file.name)
 
 
 def check_python_environment(python_exe: Path, label: str) -> None:
-    logger.info("[信息] 检查 Python 环境 (%s): %s", label, python_exe)
+    log_verbose("[信息] 检查 Python 环境 (%s): %s", label, python_exe)
     run_command([str(python_exe), "-c", "import sys; print(sys.executable)"], label=f"{label} Python 检查")
     run_command([str(python_exe), "-c", "import PyInstaller"], label=f"{label} PyInstaller 检查")
-    logger.info("[成功] %s 环境可用", label)
+    log_verbose("[成功] %s 环境可用", label)
 
 
 def python_in_venv(venv_dir: Path) -> Path:
@@ -325,7 +330,7 @@ def ensure_virtual_environment(
     venv_python = python_in_venv(venv_dir)
 
     if not venv_python.exists():
-        logger.info("[信息] 创建 %s 虚拟环境: %s", label, venv_dir)
+        logger.info("创建 %s 虚拟环境...", label)
         run_command([str(bootstrap_python), "-m", "venv", str(venv_dir)], label=f"创建 {label} 虚拟环境")
 
     run_command([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"], label=f"升级 {label} 环境 pip")
@@ -364,7 +369,7 @@ def clean_build_outputs() -> None:
         remove_path(paths.dist_dir)
     remove_path(ROOT_DIR / "build_dist")
     remove_path(ROOT_DIR / "dist")
-    logger.info("[成功] 已清理构建目录")
+    log_verbose("[成功] 已清理构建目录")
 
 
 def build_bundle(python_exe: Path, build_paths: BuildPaths, spec_file: Path) -> None:
@@ -372,24 +377,30 @@ def build_bundle(python_exe: Path, build_paths: BuildPaths, spec_file: Path) -> 
     remove_path(build_paths.work_dir)
     remove_path(build_paths.dist_dir)
 
+    pyinstaller_command = [
+        str(python_exe),
+        "-m",
+        "PyInstaller",
+        str(spec_file),
+        "--clean",
+        "--noconfirm",
+        f"--workpath={build_paths.work_dir}",
+        f"--distpath={build_paths.dist_dir}",
+    ]
+    logger.info("启动 PyInstaller 构建：开始")
+    logger.info("PyInstaller 参数：%s", " ".join(str(item) for item in pyinstaller_command[2:]))
     run_command(
-        [
-            str(python_exe),
-            "-m",
-            "PyInstaller",
-            str(spec_file),
-            "--clean",
-            "--noconfirm",
-            f"--workpath={build_paths.work_dir}",
-            f"--distpath={build_paths.dist_dir}",
-        ],
+        pyinstaller_command,
+        capture_output=not logger.isEnabledFor(logging.DEBUG),
         label=f"{build_paths.label} PyInstaller 构建",
     )
 
     exe_path = build_paths.bundle_dir / f"{APP_NAME}.exe"
     if not exe_path.exists():
         raise FileNotFoundError(f"构建完成后未找到可执行文件: {exe_path}")
-    logger.info("[成功] %s 构建完成", build_paths.label.upper())
+    logger.info("PyInstaller 构建成功！")
+    logger.info("构建产物位置：%s", exe_path)
+    log_verbose("[成功] %s 构建完成", build_paths.label.upper())
 
 
 def find_7z_executable() -> str:
@@ -487,7 +498,7 @@ def prepare_standard_installer_staging(source_bundle_dir: Path, staging_root: Pa
         label=label,
     )
     copy_file(INNO_LANGUAGE_FILE, staging_dir / INNO_LANGUAGE_FILE.name)
-    logger.info("[成功] 已准备标准安装包脚本目录: %s", staging_dir)
+    log_verbose("[成功] 已准备标准安装包脚本目录: %s", staging_dir)
     return staging_dir / "SuperPicky.iss"
 
 
@@ -512,12 +523,12 @@ def publish_standard_build(
     if not config.no_zip:
         zip_path = artifact_root / archive_name_for(label, config.app_version, config.commit_hash)
         create_zip_archive(zip_source_dir, zip_path)
-        logger.info("[成功] 已创建 ZIP 压缩包: %s", zip_path)
+        log_verbose("[成功] 已创建 ZIP 压缩包: %s", zip_path)
     else:
         zip_path = None
-        logger.info("[信息] 跳过 ZIP 压缩包创建 (--no-zip)")
+        log_verbose("[信息] 跳过 ZIP 压缩包创建 (--no-zip)")
 
-    logger.info("[成功] 已准备目录: %s", final_bundle_dir)
+    log_verbose("[成功] 已准备目录: %s", final_bundle_dir)
     return final_bundle_dir, zip_path, installer_script_path
 
 
@@ -578,9 +589,9 @@ def prepare_patch_directory(cpu_bundle: Path, cuda_bundle: Path, config: BuildCo
             shutil.copy2(cuda_file, destination)
 
     manifest_path = write_patch_manifest(patch_dir, copied_patch_files)
-    logger.info("[成功] 已导出差异文件: %d 个不同文件, %d 个 CUDA 独有文件", different_count, cuda_only_count)
-    logger.info("[成功] 已写入补丁清单: %s", manifest_path)
-    logger.info("[成功] 补丁目录: %s", patch_dir)
+    log_verbose("[成功] 已导出差异文件: %d 个不同文件, %d 个 CUDA 独有文件", different_count, cuda_only_count)
+    log_verbose("[成功] 已写入补丁清单: %s", manifest_path)
+    log_verbose("[成功] 补丁目录: %s", patch_dir)
     return patch_dir
 
 
@@ -597,7 +608,7 @@ def prepare_patch_installer_staging(portable_patch_dir: Path, config: BuildConfi
         commit_hash=config.commit_hash,
         patch=True,
     )
-    logger.info("[成功] 已准备 CUDA 补丁安装包脚本目录: %s", staging_dir)
+    log_verbose("[成功] 已准备 CUDA 补丁安装包脚本目录: %s", staging_dir)
     return staging_dir / PATCH_INNO_TEMPLATE.name
 
 
@@ -654,7 +665,7 @@ def run_lite_build(config: BuildConfig) -> None:
     clean_build_outputs()
     _, final_bundle, zip_path, installer_script_path = build_single_target(config, "lite", build_python)
     logger.info("[========================================]")
-    logger.info("Lite Demo 构建完成")
+    logger.info("Lite 构建完成")
     logger.info("[========================================]")
     logger.info("可执行文件: %s", final_bundle / f"{APP_NAME}.exe")
     logger.info("压缩文件: %s", zip_path if zip_path else "(已跳过)")
@@ -682,15 +693,15 @@ def run_cuda_patch_build(config: BuildConfig) -> None:
             config.commit_hash,
         )
         create_zip_archive(patch_dir, patch_zip)
-        logger.info("[成功] 已创建 CUDA 补丁 ZIP 压缩包: %s", patch_zip)
+        log_verbose("[成功] 已创建 CUDA 补丁 ZIP 压缩包: %s", patch_zip)
     else:
         patch_zip = None
-        logger.info("[信息] 跳过 CUDA 补丁 ZIP 压缩包创建 (--no-zip)")
+        log_verbose("[信息] 跳过 CUDA 补丁 ZIP 压缩包创建 (--no-zip)")
 
     log_step("步骤 7: 清理 CUDA 中间产物")
     remove_path(cuda_paths.work_dir)
     remove_path(cuda_paths.dist_dir)
-    logger.info("[成功] 已清理 CUDA 中间目录")
+    log_verbose("[成功] 已清理 CUDA 中间目录")
 
     logger.info("[========================================]")
     logger.info("CUDA Patch 构建完成")

@@ -94,6 +94,7 @@ class AdvancedConfig:
         "initialization_completed": False,
         "initialization_manifest_version": "v1",
         "initialization_in_progress": False,
+        "last_init_exit_reason": "none",
 
         # V4.3+: 运行时选择与能力探测
         "selected_runtime_variant": "auto",   # auto | cpu | cuda | mac
@@ -421,6 +422,15 @@ class AdvancedConfig:
 
     def set_initialization_in_progress(self, value: bool):
         self._set_init_config("initialization_in_progress", bool(value))
+
+    @property
+    def last_init_exit_reason(self) -> str:
+        value = str(self.config.get("last_init_exit_reason", "none") or "none")
+        return value if value in ("none", "interrupted", "failed") else "none"
+
+    def set_last_init_exit_reason(self, value: str):
+        normalized = value if value in ("none", "interrupted", "failed") else "none"
+        self._set_init_config("last_init_exit_reason", normalized)
 
     @property
     def selected_runtime_variant(self) -> str:

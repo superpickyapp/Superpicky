@@ -86,6 +86,10 @@ STAGE_READY = "ready"
 STAGE_FAILED = "failed"
 
 
+class InitializationInterrupted(RuntimeError):
+    """用户主动中断初始化 / User-requested initialization interruption."""
+
+
 @dataclass
 class RuntimeSelection:
     variant: str
@@ -126,6 +130,8 @@ class InitializationManager(QObject):
             self.config.runtime_install_location_preference
         )
         self._source_map: Dict[str, str] = {}
+        self._cancel_requested = threading.Event()
+        self._active_process: Optional[subprocess.Popen[str]] = None
 
         self._ensure_hf_endpoint_configured()
         logging.info("初始化管理器已创建，项目根目录: %s", self._project_root)
@@ -209,6 +215,7 @@ class InitializationManager(QObject):
             "downloaded_resources": self.config.set_downloaded_resources,
             "resolved_source_map": self.config.set_resolved_source_map,
             "last_init_error": self.config.set_last_init_error,
+            "last_init_exit_reason": self.config.set_last_init_exit_reason,
             "is_first_run": self.config.set_is_first_run,
         }
         for key, value in updates.items():
@@ -239,6 +246,9 @@ class InitializationManager(QObject):
 
     def _requires_install_local_runtime(self) -> bool:
         return getattr(sys, "frozen", False) and sys.platform == "win32"
+
+    def _uses_bundled_runtime(self) -> bool:
+        return getattr(sys, "frozen", False) and sys.platform == "darwin"
 
     @staticmethod
     def _existing_probe_path(path: Path) -> Path:
@@ -328,6 +338,13 @@ class InitializationManager(QObject):
     def resolve_runtime_dir(self, preferred_key: Optional[str] = None) -> Path:
         return self.choose_runtime_install_location(preferred_key).runtime_dir
 
+    def runtime_display_dir(self, preferred_key: Optional[str] = None) -> Path:
+        if self._uses_bundled_runtime():
+            return get_bundled_resource_dir()
+        if self._requires_install_local_runtime():
+            return get_app_internal_dir() / "runtime_env"
+        return self.resolve_runtime_dir(preferred_key)
+
     def start(self, options: dict, mode: str = "init") -> None:
         normalized_options = dict(options)
         normalized_options["features"] = self._normalize_features(
@@ -343,6 +360,7 @@ class InitializationManager(QObject):
         self._last_mode = mode
         if self._thread and self._thread.is_alive():
             return
+        self._cancel_requested.clear()
         self._thread = threading.Thread(
             target=self._run, args=(dict(normalized_options), mode), daemon=True
         )
@@ -361,6 +379,15 @@ class InitializationManager(QObject):
     def resume_pending(self) -> None:
         if self._last_options is not None:
             self.start(self._last_options, mode=self._last_mode)
+
+    def cancel(self) -> None:
+        self._cancel_requested.set()
+        process = self._active_process
+        if process is not None and process.poll() is None:
+            try:
+                process.terminate()
+            except Exception:
+                pass
 
     def is_ready_for_main_ui(
         self, selected_features: Optional[Iterable[str]] = None
@@ -431,10 +458,17 @@ class InitializationManager(QObject):
             logging.info("运行时环境健康，无需修复")
             return False
 
+        if self._uses_bundled_runtime():
+            raise RuntimeError(
+                "Bundled macOS Lite Torch runtime is unavailable; rebuild the app bundle."
+            )
+
         logging.info("运行时环境需要修复，开始准备 %s 运行时...", runtime_variant)
         self._emit_stage(
             STAGE_PREPARING_RUNTIME, f"Preparing {runtime_variant} runtime..."
         )
+        self._cleanup_partial_runtime()
+        self._purge_pip_cache_if_needed()
 
         start_time = time.perf_counter()
         try:
@@ -531,6 +565,7 @@ class InitializationManager(QObject):
 
     def _run(self, options: dict, mode: str) -> None:
         try:
+            self._raise_if_cancelled()
             selected_features = self._normalize_features(options.get("features"))
             runtime_location = self.choose_runtime_install_location(
                 options.get("runtime_install_location")
@@ -540,6 +575,7 @@ class InitializationManager(QObject):
             self._save_config(
                 initialization_in_progress=(mode == "init"),
                 last_init_error=None,
+                last_init_exit_reason="none",
                 runtime_install_location_preference=runtime_location.key,
                 resolved_runtime_dir=str(runtime_location.runtime_dir),
             )
@@ -556,6 +592,7 @@ class InitializationManager(QObject):
                     enabled_feature_set=selected_features,
                 )
 
+            self._raise_if_cancelled()
             self._emit_stage(STAGE_PROBING, "Probing download sources...")
             self._source_map = self._resolve_best_sources(runtime_choice.variant)
             self._emit_item_status(
@@ -574,7 +611,9 @@ class InitializationManager(QObject):
                     "updates", "skipped", "Automatic updates disabled by user"
                 )
 
+            self._raise_if_cancelled()
             self.repair_runtime_if_needed(runtime_choice.variant)
+            self._raise_if_cancelled()
             self.repair_resources_if_needed(selected_features)
 
             self._emit_stage(STAGE_VERIFYING, "Verifying resources...")
@@ -587,6 +626,7 @@ class InitializationManager(QObject):
             if mode == "init":
                 success_updates.update(
                     initialization_completed=True,
+                    last_init_exit_reason="none",
                     is_first_run=False,
                     downloaded_resources={
                         item["resource_id"]: True
@@ -608,9 +648,20 @@ class InitializationManager(QObject):
                     "mode": mode,
                 },
             )
+        except InitializationInterrupted:
+            self._cleanup_partial_runtime()
+            self._purge_pip_cache_if_needed()
+            self._save_config(
+                initialization_in_progress=False,
+                last_init_error=None,
+                last_init_exit_reason="interrupted",
+            )
+            self.finished.emit(False, {"interrupted": True, "mode": mode})
         except Exception as exc:
             self._save_config(
-                initialization_in_progress=False, last_init_error=str(exc)
+                initialization_in_progress=False,
+                last_init_error=str(exc),
+                last_init_exit_reason="failed",
             )
             self._emit_stage(STAGE_FAILED, str(exc))
             self.finished.emit(False, {"error": str(exc), "mode": mode})
@@ -630,6 +681,7 @@ class InitializationManager(QObject):
         try:
             from tools.update_checker import UpdateChecker
 
+            self._raise_if_cancelled()
             checker = UpdateChecker()
             checker.check_for_updates()
             self._emit_item_status("updates", "done", "Update probe finished")
@@ -692,6 +744,11 @@ class InitializationManager(QObject):
         return fallback.url if fallback else primary_url
 
     def _prepare_runtime(self, runtime_variant: str) -> None:
+        if self._uses_bundled_runtime():
+            raise RuntimeError(
+                "Bundled macOS Lite Torch runtime is unavailable; runtime installation is disabled."
+            )
+
         if self._use_packaged_runtime_bootstrap():
             self._prepare_runtime_with_packaged_bootstrap(runtime_variant)
             return
@@ -712,6 +769,7 @@ class InitializationManager(QObject):
         install_cmd = [
             str(pip_executable),
             "install",
+            "--no-cache-dir",
             "-r",
             str(requirements_file),
             "-i",
@@ -733,12 +791,29 @@ class InitializationManager(QObject):
         return getattr(sys, "frozen", False) and sys.platform == "win32"
 
     def _runtime_site_packages_candidates(self) -> list[Path]:
-        version_tag = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        return [
+        candidates: list[Path] = [
             self._runtime_dir / "site-packages",
             self._runtime_dir / "Lib" / "site-packages",
-            self._runtime_dir / "lib" / version_tag / "site-packages",
         ]
+        lib_dir = self._runtime_dir / "lib"
+        if lib_dir.exists():
+            candidates.extend(sorted(lib_dir.glob("python*/site-packages")))
+        version_tag = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        candidates.append(self._runtime_dir / "lib" / version_tag / "site-packages")
+
+        unique_candidates: list[Path] = []
+        seen_paths: set[Path] = set()
+        for candidate in candidates:
+            if candidate in seen_paths:
+                continue
+            seen_paths.add(candidate)
+            unique_candidates.append(candidate)
+        return unique_candidates
+
+    def _runtime_python_executable(self) -> Path:
+        if os.name == "nt":
+            return self._runtime_dir / "Scripts" / "python.exe"
+        return self._runtime_dir / "bin" / "python3"
 
     def _prepare_runtime_with_packaged_bootstrap(self, runtime_variant: str) -> None:
         requirements_file = self._resolve_runtime_requirements_path(runtime_variant)
@@ -780,14 +855,21 @@ class InitializationManager(QObject):
             popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
         process = subprocess.Popen(command, **popen_kwargs)
-        assert process.stdout is not None
-        for line in process.stdout:
-            text = line.strip()
-            if text:
-                self.item_status_changed.emit("runtime", "progress", f"{label}: {text}")
-        return_code = process.wait()
-        if return_code != 0:
-            raise RuntimeError(f"{label} failed with exit code {return_code}")
+        self._active_process = process
+        try:
+            assert process.stdout is not None
+            for line in process.stdout:
+                self._raise_if_cancelled()
+                text = line.strip()
+                if text:
+                    self.item_status_changed.emit("runtime", "progress", f"{label}: {text}")
+            return_code = process.wait()
+            if self._cancel_requested.is_set():
+                raise InitializationInterrupted("Initialization interrupted by user")
+            if return_code != 0:
+                raise RuntimeError(f"{label} failed with exit code {return_code}")
+        finally:
+            self._active_process = None
 
     def _resolve_python_command(self) -> list[str]:
         if os.environ.get("VIRTUAL_ENV") and shutil.which("python"):
@@ -820,6 +902,8 @@ class InitializationManager(QObject):
         raise RuntimeError("Unable to find a Python interpreter for runtime bootstrap")
 
     def _inject_runtime_site_packages(self) -> None:
+        if self._uses_bundled_runtime():
+            return
         importlib.invalidate_caches()
         for candidate in self._runtime_site_packages_candidates():
             if candidate.exists():
@@ -829,7 +913,45 @@ class InitializationManager(QObject):
 
     def _verify_runtime_import(self, runtime_variant: str) -> None:
         try:
+            if self._uses_bundled_runtime():
+                torch_module = importlib.import_module("torch")
+                torch_version = getattr(torch_module, "__version__", "unknown")
+                self._emit_item_status(
+                    "runtime",
+                    "done",
+                    f"Bundled Torch import OK: {torch_version} ({runtime_variant})",
+                )
+                return
             importlib.invalidate_caches()
+            self._inject_runtime_site_packages()
+            runtime_python = self._runtime_python_executable()
+            if runtime_python.exists():
+                result = subprocess.run(
+                    [
+                        str(runtime_python),
+                        "-c",
+                        (
+                            "import torch, sys; "
+                            "print(torch.__version__); "
+                            "print(sys.executable)"
+                        ),
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    check=True,
+                )
+                runtime_lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+                torch_version = runtime_lines[0] if runtime_lines else "unknown"
+                runtime_executable = runtime_lines[1] if len(runtime_lines) > 1 else str(runtime_python)
+                self._emit_item_status(
+                    "runtime",
+                    "done",
+                    f"Torch import OK: {torch_version} ({runtime_variant}) via {runtime_executable}",
+                )
+                return
             torch_module = importlib.import_module("torch")
             torch_version = getattr(torch_module, "__version__", "unknown")
             self._emit_item_status(
@@ -844,6 +966,10 @@ class InitializationManager(QObject):
 
     def _runtime_import_ok(self) -> bool:
         try:
+            if self._uses_bundled_runtime():
+                importlib.invalidate_caches()
+                importlib.import_module("torch")
+                return True
             self._inject_runtime_site_packages()
             importlib.invalidate_caches()
             importlib.import_module("torch")
@@ -851,7 +977,59 @@ class InitializationManager(QObject):
         except Exception:
             return False
 
+    def _raise_if_cancelled(self) -> None:
+        if self._cancel_requested.is_set():
+            raise InitializationInterrupted("Initialization interrupted by user")
+
+    def _cleanup_partial_runtime(self) -> None:
+        if self._uses_bundled_runtime():
+            return
+        runtime_dir = self._runtime_dir
+        if not runtime_dir.exists():
+            return
+
+        removable_paths = [
+            runtime_dir / "site-packages",
+            runtime_dir / "Lib" / "site-packages",
+            runtime_dir / "runtime_install_manifest.json",
+        ]
+        for candidate in removable_paths:
+            try:
+                if candidate.is_dir():
+                    shutil.rmtree(candidate, ignore_errors=True)
+                else:
+                    candidate.unlink(missing_ok=True)
+            except Exception as exc:
+                logging.warning("清理运行时残留失败: %s (%s)", candidate, exc)
+
+    def _pip_cache_roots(self) -> list[Path]:
+        roots: list[Path] = []
+        if sys.platform == "win32":
+            local_app_data = os.environ.get("LOCALAPPDATA")
+            if local_app_data:
+                roots.append(Path(local_app_data) / "pip" / "Cache")
+        else:
+            roots.append(Path.home() / ".cache" / "pip")
+        return roots
+
+    def _purge_pip_cache_if_needed(self) -> None:
+        for cache_root in self._pip_cache_roots():
+            if not cache_root.exists():
+                continue
+            for relative_name in ("http-v2", "http", "wheels", "selfcheck"):
+                candidate = cache_root / relative_name
+                try:
+                    if candidate.is_dir():
+                        shutil.rmtree(candidate, ignore_errors=True)
+                    else:
+                        candidate.unlink(missing_ok=True)
+                except Exception as exc:
+                    logging.warning("清理 pip 缓存失败: %s (%s)", candidate, exc)
+
     def _has_runtime_available(self) -> bool:
+        if self._uses_bundled_runtime():
+            importlib.invalidate_caches()
+            return importlib.util.find_spec("torch") is not None
         if importlib.util.find_spec("torch") is not None:
             return True
         self._inject_runtime_site_packages()

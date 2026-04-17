@@ -31,13 +31,12 @@ if PROJECT_ROOT not in sys.path:
 
 from advanced_config import get_advanced_config
 from core.initialization_manager import InitializationManager
+from ui.custom_dialogs import StyledMessageBox
 from ui.skill_level_dialog import SkillLevelCard
 from ui.styles import COLORS, FONTS
 
-
 UPDATE_OPTION_KEYS = ("enabled", "disabled")
 SKILL_LEVEL_KEYS = ("beginner", "intermediate", "master")
-RUNTIME_INSTALL_OPTION_KEYS = ("default", "install")
 FULL_FEATURE_SET = ("core_detection", "quality", "keypoint", "flight", "birdid")
 
 SELECTABLE_CARD_TITLE_STYLE = f"""
@@ -191,8 +190,7 @@ class SelectableCard(QFrame):
         self._selected = False
         self.setObjectName("updateOptionCard")
         self.setCursor(POINTING_HAND_CURSOR)
-        self.setFixedHeight(92)
-        self.setMinimumWidth(160)
+        self.setFixedSize(260, 150)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 10, 14, 10)
@@ -244,6 +242,22 @@ class LockedFeatureCheckBox(QCheckBox):
 
     def keyPressEvent(self, event) -> None:
         event.accept()
+
+
+class StatusBulletLabel(QLabel):
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(text, parent)
+        self.setWordWrap(True)
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.setStyleSheet(
+            f"""
+            color: {COLORS['text_primary']};
+            font-size: 13px;
+            font-weight: 600;
+            background: transparent;
+            padding-left: 4px;
+            """
+        )
 
 
 class RoundedProgressBar(QWidget):
@@ -547,12 +561,15 @@ class WelcomeOnboardingDialog(QDialog):
         self._skill_cards: dict[str, SkillLevelCard] = {}
         self._update_cards: dict[str, SelectableCard] = {}
         self._feature_boxes: dict[str, LockedFeatureCheckBox] = {}
-        self._runtime_location_cards: dict[str, SelectableCard] = {}
+        self._runtime_status_labels: list[QLabel] = []
         self._initialization_complete = False
-        self._background_mode = False
+        self._initialization_running = False
+        self._closing_after_interrupt = False
 
         self.initialization_manager = InitializationManager(self)
-        self.selected_runtime_install_location = self._default_runtime_install_location()
+        self.selected_runtime_install_location = (
+            self.initialization_manager.choose_runtime_install_location().key
+        )
 
         self.setModal(True)
         self.setWindowTitle(self.i18n.t("onboarding.window_title"))
@@ -580,12 +597,6 @@ class WelcomeOnboardingDialog(QDialog):
             "runtime_install_location": self.selected_runtime_install_location,
             "features": list(FULL_FEATURE_SET),
         }
-
-    def _default_runtime_install_location(self) -> str:
-        preferred = self.config.runtime_install_location_preference
-        if preferred in RUNTIME_INSTALL_OPTION_KEYS:
-            return self.initialization_manager.choose_runtime_install_location(preferred).key
-        return self.initialization_manager.choose_runtime_install_location().key
 
     def _create_page_widget(self) -> tuple[QWidget, QVBoxLayout]:
         page = QWidget()
@@ -640,7 +651,7 @@ class WelcomeOnboardingDialog(QDialog):
             prev_enabled=page_index > 0 and not is_init_page,
             next_text=next_text,
             next_enabled=not is_init_page or self._initialization_complete,
-            background_visible=is_init_page,
+            background_visible=False,
             retry_visible=is_init_page and not self._initialization_complete and self.retry_btn.isVisible(),
         )
 
@@ -648,7 +659,6 @@ class WelcomeOnboardingDialog(QDialog):
         self.prev_btn.setEnabled(state.prev_enabled)
         self.next_btn.setText(state.next_text)
         self.next_btn.setEnabled(state.next_enabled)
-        self.background_btn.setVisible(state.background_visible)
         self.retry_btn.setVisible(state.retry_visible)
 
     def _refresh_nav_state(self) -> None:
@@ -665,6 +675,7 @@ class WelcomeOnboardingDialog(QDialog):
             self._build_update_page,
             self._build_skill_level_page,
             self._build_feature_page,
+            self._build_runtime_status_page,
             self._build_initialization_page,
         ):
             self.stack.addWidget(page_builder())
@@ -686,14 +697,6 @@ class WelcomeOnboardingDialog(QDialog):
 
         self.prev_btn = self._create_nav_button(self.i18n.t("onboarding.previous"), self._go_previous, secondary=True)
         nav_layout.addWidget(self.prev_btn)
-
-        self.background_btn = self._create_nav_button(
-            self.i18n.t("onboarding.continue_in_background"),
-            self._continue_in_background,
-            secondary=True,
-        )
-        self.background_btn.hide()
-        nav_layout.addWidget(self.background_btn)
 
         self.retry_btn = self._create_nav_button(self.i18n.t("repair.retry"), self._retry_initialization, secondary=True)
         self.retry_btn.hide()
@@ -752,41 +755,32 @@ class WelcomeOnboardingDialog(QDialog):
 
     def _build_feature_page(self) -> QWidget:
         page, layout = self._create_page_widget()
-        runtime_ready = self.initialization_manager.check_runtime_health()
         layout.addWidget(self._create_text_label(self.i18n.t("onboarding.features_title"), PAGE_TITLE_STYLE))
         layout.addWidget(self._create_text_label(self.i18n.t("onboarding.features_subtitle"), BODY_SUBTITLE_STYLE))
         for feature_key in FULL_FEATURE_SET:
             checkbox = LockedFeatureCheckBox(self.i18n.t(f"onboarding.feature_{feature_key}_label"))
             self._feature_boxes[feature_key] = checkbox
             layout.addWidget(checkbox)
-        if not runtime_ready:
-            layout.addSpacing(4)
-            layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_title"), PAGE_TITLE_STYLE))
-            layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_subtitle"), BODY_SUBTITLE_STYLE))
-            cards = []
-            for option in self.initialization_manager.get_runtime_install_location_options():
-                if not option.writable:
-                    continue
-                card = SelectableCard(
-                    option.key,
-                    self.i18n.t(f"onboarding.install_location_{option.key}_title"),
-                    self.i18n.t(f"onboarding.install_location_{option.key}_desc"),
-                )
-                card.clicked.connect(self._on_runtime_install_location_clicked)
-                self._runtime_location_cards[option.key] = card
-                cards.append(card)
-            if cards:
-                layout.addLayout(self._create_card_row(cards))
-            resolved_runtime_dir = self.initialization_manager.resolve_runtime_dir(self.selected_runtime_install_location)
-            self.install_location_path_label = self._create_text_label(
-                self.i18n.t("onboarding.install_location_path", path=str(resolved_runtime_dir)),
-                HINT_STYLE,
-            )
-            layout.addWidget(self.install_location_path_label)
-            layout.addWidget(self._create_text_label(self.i18n.t("onboarding.install_location_hint"), HINT_STYLE))
-        self.runtime_status_label = self._create_text_label(self._runtime_hint_text(), HINT_STYLE)
-        layout.addWidget(self.runtime_status_label)
         layout.addStretch()
+        return page
+
+    def _build_runtime_status_page(self) -> QWidget:
+        page, layout = self._create_page_widget()
+        layout.addWidget(
+            self._create_text_label(self.i18n.t("onboarding.runtime_status_title"), PAGE_TITLE_STYLE)
+        )
+        self.runtime_status_label = self._create_text_label("", BODY_SUBTITLE_STYLE)
+        layout.addWidget(self.runtime_status_label)
+        status_layout = QVBoxLayout()
+        status_layout.setContentsMargins(0, 10, 0, 0)
+        status_layout.setSpacing(8)
+        for _ in range(5):
+            label = StatusBulletLabel()
+            self._runtime_status_labels.append(label)
+            status_layout.addWidget(label)
+        layout.addLayout(status_layout)
+        layout.addStretch()
+        self._refresh_runtime_status_page()
         return page
 
     def _build_initialization_page(self) -> QWidget:
@@ -816,6 +810,45 @@ class WelcomeOnboardingDialog(QDialog):
             return self.i18n.t("onboarding.runtime_hint_mac")
         return self.i18n.t("onboarding.runtime_hint_cpu")
 
+    def _runtime_status_lines(self) -> list[str]:
+        runtime_ready = self.initialization_manager.check_runtime_health()
+        runtime_selection = self.initialization_manager.detect_runtime_selection(
+            self.config.selected_runtime_variant or "auto"
+        )
+        resolved_runtime_dir = self.initialization_manager.runtime_display_dir(
+            self.selected_runtime_install_location
+        )
+        install_policy = (
+            self.i18n.t("onboarding.runtime_status_policy_windows")
+            if sys.platform == "win32"
+            else self.i18n.t("onboarding.runtime_status_policy_mac")
+        )
+        health_line = (
+            self.i18n.t("onboarding.runtime_status_item_ready")
+            if runtime_ready
+            else self.i18n.t("onboarding.runtime_status_item_pending")
+        )
+        variant_line = self.i18n.t(
+            "onboarding.runtime_status_item_variant",
+            variant=runtime_selection.variant.upper(),
+        )
+        source_line = self.i18n.t(
+            "onboarding.runtime_status_item_source",
+            detail=(
+                self.i18n.t("onboarding.runtime_status_result_ready")
+                if runtime_ready
+                else self.i18n.t("onboarding.runtime_status_result_pending")
+            ),
+        )
+        path_line = self.i18n.t("onboarding.runtime_status_path", path=str(resolved_runtime_dir))
+        return [health_line, variant_line, install_policy, source_line, path_line]
+
+    def _refresh_runtime_status_page(self) -> None:
+        lines = self._runtime_status_lines()
+        self.runtime_status_label.setText(self._runtime_hint_text())
+        for label, text in zip(self._runtime_status_labels, lines):
+            label.setText(text)
+
     def _apply_single_selection(self, cards: Mapping[str, _SelectableCardLike], selected_key: str):
         for key, card in cards.items():
             card.set_selected(key == selected_key)
@@ -823,7 +856,6 @@ class WelcomeOnboardingDialog(QDialog):
     def _sync_defaults(self):
         self._set_auto_update_enabled(self.auto_update_enabled, force=True)
         self._set_skill_level(self.selected_level, force=True)
-        self._set_runtime_install_location(self.selected_runtime_install_location, force=True)
 
     def _set_auto_update_enabled(self, enabled: bool, *, force: bool = False):
         if not force and self.auto_update_enabled == enabled:
@@ -837,22 +869,6 @@ class WelcomeOnboardingDialog(QDialog):
         self.selected_level = level_key
         self._apply_single_selection(self._skill_cards, level_key)
 
-    def _set_runtime_install_location(self, option_key: str, *, force: bool = False):
-        if option_key not in self._runtime_location_cards:
-            option_key = self.initialization_manager.choose_runtime_install_location(option_key).key
-        if not force and self.selected_runtime_install_location == option_key:
-            return
-        self.selected_runtime_install_location = option_key
-        self._apply_single_selection(self._runtime_location_cards, option_key)
-        if hasattr(self, "install_location_path_label"):
-            resolved_runtime_dir = self.initialization_manager.resolve_runtime_dir(option_key)
-            self.install_location_path_label.setText(
-                self.i18n.t("onboarding.install_location_path", path=str(resolved_runtime_dir))
-            )
-        if hasattr(self, "runtime_status_label"):
-            self.runtime_status_label.setText(self._runtime_hint_text())
-        self._refresh_nav_state()
-
     def _preparation_can_finish(self) -> bool:
         return not self.initialization_manager.needs_initialization(FULL_FEATURE_SET)
 
@@ -864,12 +880,16 @@ class WelcomeOnboardingDialog(QDialog):
 
         self.current_page = page_index
         self.stack.setCurrentIndex(page_index)
+        if self._is_preparation_page(page_index):
+            self._refresh_runtime_status_page()
         self._refresh_nav_state()
         for index, dot in enumerate(self._dots):
             dot.setStyleSheet(DOT_ACTIVE_STYLE if index == page_index else DOT_INACTIVE_STYLE)
 
     def _start_initialization(self):
         self._initialization_complete = False
+        self._initialization_running = True
+        self._closing_after_interrupt = False
         self._set_current_page(self._page_count() - 1)
         self._progress.reset()
         self.log_view.append(self.i18n.t("onboarding.log_start"))
@@ -885,9 +905,6 @@ class WelcomeOnboardingDialog(QDialog):
 
     def _on_skill_level_clicked(self, level_key: str):
         self._set_skill_level(level_key)
-
-    def _on_runtime_install_location_clicked(self, option_key: str):
-        self._set_runtime_install_location(option_key)
 
     def _go_previous(self):
         self._set_current_page(self.current_page - 1)
@@ -905,32 +922,34 @@ class WelcomeOnboardingDialog(QDialog):
             return
         self._set_current_page(self.current_page + 1)
 
-    def _continue_in_background(self):
-        self._background_mode = True
-        self.setModal(False)
-        self.hide()
-
     def _retry_initialization(self):
         self.retry_btn.hide()
         self.log_view.append(self.i18n.t("onboarding.log_retry"))
         self._progress.reset()
+        self._initialization_running = True
+        self._closing_after_interrupt = False
         self._refresh_nav_state()
         self.initialization_manager.retry_failed()
 
     def _on_initialization_succeeded(self, _summary: object) -> None:
         self._initialization_complete = True
+        self._initialization_running = False
         self.next_btn.setText(self.i18n.t("onboarding.finish"))
         self.next_btn.setEnabled(True)
         self.retry_btn.hide()
-        if self._background_mode:
-            self.show()
-            self.raise_()
-            self.activateWindow()
+        self._refresh_runtime_status_page()
         QApplication.processEvents()
         QTimer.singleShot(300, self._complete_onboarding)
 
     def _on_initialization_failed(self, summary: object) -> None:
         self._initialization_complete = False
+        self._initialization_running = False
+        if isinstance(summary, dict) and summary.get("interrupted"):
+            if not self._closing_after_interrupt:
+                self.stage_label.setText(self.i18n.t("onboarding.initialization_interrupted"))
+                self.log_view.append(self.i18n.t("onboarding.initialization_interrupted"))
+                self._refresh_nav_state()
+            return
         self.retry_btn.show()
         self.next_btn.setEnabled(False)
         error_text = (
@@ -941,3 +960,30 @@ class WelcomeOnboardingDialog(QDialog):
         self.stage_label.setText(error_text)
         self.log_view.append(f"[failed] {error_text}")
         self._refresh_nav_state()
+
+    def _confirm_interrupt_initialization(self) -> bool:
+        reply = StyledMessageBox.question(
+            self,
+            self.i18n.t("onboarding.close_confirm_title"),
+            self.i18n.t("onboarding.close_confirm_message"),
+            yes_text=self.i18n.t("onboarding.close_confirm_exit"),
+            no_text=self.i18n.t("onboarding.close_confirm_continue"),
+        )
+        return reply == StyledMessageBox.Yes
+
+    def reject(self) -> None:
+        if self._initialization_running and not self._closing_after_interrupt:
+            if not self._confirm_interrupt_initialization():
+                return
+            self._closing_after_interrupt = True
+            self.initialization_manager.cancel()
+        super().reject()
+
+    def closeEvent(self, event) -> None:
+        if self._initialization_running and not self._closing_after_interrupt:
+            if not self._confirm_interrupt_initialization():
+                event.ignore()
+                return
+            self._closing_after_interrupt = True
+            self.initialization_manager.cancel()
+        super().closeEvent(event)

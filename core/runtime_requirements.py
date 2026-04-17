@@ -28,6 +28,15 @@ class RuntimeRequirements:
     extra_index_urls: list[str]
     index_url: str | None = None
 
+    @staticmethod
+    def _format_pinned_requirement(package_name: str, version: str) -> str:
+        """Return a pinned requirement only when a version is provided."""
+
+        normalized_version = version.strip()
+        if not normalized_version:
+            return package_name
+        return f"{package_name}=={normalized_version}"
+
     def to_requirements_list(self) -> list[str]:
         """Convert configuration to pip requirements list format."""
         requirements = []
@@ -35,8 +44,10 @@ class RuntimeRequirements:
             requirements.append(f"--index-url {self.index_url}")
         for url in self.extra_index_urls:
             requirements.append(f"--extra-index-url {url}")
-        requirements.append(f"torch=={self.torch_version}")
-        requirements.append(f"torchvision=={self.torchvision_version}")
+        requirements.append(self._format_pinned_requirement("torch", self.torch_version))
+        requirements.append(
+            self._format_pinned_requirement("torchvision", self.torchvision_version)
+        )
         requirements.append(f"timm{self.timm_version}")
         return requirements
 
@@ -47,8 +58,8 @@ class RuntimeRequirements:
             lines.append(f"--index-url {self.index_url}")
         for url in self.extra_index_urls:
             lines.append(f"--extra-index-url {url}")
-        lines.append(f"torch=={self.torch_version}")
-        lines.append(f"torchvision=={self.torchvision_version}")
+        lines.append(self._format_pinned_requirement("torch", self.torch_version))
+        lines.append(self._format_pinned_requirement("torchvision", self.torchvision_version))
         lines.append(f"timm{self.timm_version}")
         return "\n".join(lines)
 
@@ -83,7 +94,7 @@ def get_mac_requirements() -> RuntimeRequirements:
     """Get runtime requirements for macOS builds."""
     return RuntimeRequirements(
         torch_version="2.8.0",
-        torchvision_version="",
+        torchvision_version="0.23.0",
         timm_version=">=0.9.0",
         extra_index_urls=[],
     )

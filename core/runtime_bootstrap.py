@@ -42,6 +42,7 @@ def _build_pip_args(args: argparse.Namespace, site_packages_dir: Path) -> list[s
         "install",
         "--disable-pip-version-check",
         "--no-warn-script-location",
+        "--no-cache-dir",
         "--use-deprecated=legacy-certs",
         "--upgrade",
         "--target",

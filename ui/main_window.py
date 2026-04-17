@@ -3506,6 +3506,13 @@ class SuperPickyMainWindow(QMainWindow):
         # 这样 telemetry / consent 完成后只会决策一次，避免 onboarding 被其他启动路径重复触发。
         self._startup_prompts_ran = True
         needs_init = self._init_manager.needs_initialization()
+        if (
+            needs_init
+            and not self.config.is_first_run
+            and self.config.last_init_exit_reason == "interrupted"
+        ):
+            self._show_environment_repair_dialog()
+            return
         if self.config.is_first_run or needs_init:
             self._show_first_run_skill_level_dialog()
         else:

@@ -42,6 +42,9 @@ Root: HKLM64; Subkey: "SOFTWARE\SuperPicky"; ValueType: string; ValueName: "CUDA
 Root: HKLM64; Subkey: "SOFTWARE\SuperPicky"; ValueType: string; ValueName: "CUDA_Patch_FileList"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKLM64; Subkey: "SOFTWARE\SuperPicky"; ValueType: string; ValueName: "CUDA_Patch_InstalledAt"; ValueData: ""; Flags: uninsdeletevalue
 
+[Dirs]
+Name: "{app}\_internal\runtime_env"; Permissions: users-modify
+
 [Code]
 const
   AppRegistryKey = 'SOFTWARE\SuperPicky';
