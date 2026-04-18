@@ -91,13 +91,14 @@ class WorkerSignals(QObject):
 class WorkerThread(threading.Thread):
     """处理线程"""
 
-    def __init__(self, dir_path, ui_settings, signals, i18n=None, resume=False):
+    def __init__(self, dir_path, ui_settings, signals, i18n=None, resume=False, scan_results=None):
         super().__init__(daemon=True)
         self.dir_path = dir_path
         self.ui_settings = ui_settings
         self.signals = signals
         self.i18n = i18n or get_i18n()
         self.resume = resume
+        self.scan_results = list(scan_results) if scan_results is not None else None
         self._stop_event = threading.Event()
         self._active_processor = None
         self.caffeinate_process = None
@@ -369,13 +370,18 @@ class WorkerThread(threading.Thread):
         )
 
         # Detect batch mode: check for subdirectories with photos
-        from core.recursive_scanner import scan_recursive, has_photos
-        sub_dirs = scan_recursive(self.dir_path, max_depth=5)
+        from core.recursive_scanner import DEFAULT_SCAN_MAX_DEPTH, scan_directories
 
-        if len(sub_dirs) <= 1:
+        scan_results = self.scan_results
+        if scan_results is None:
+            scan_results = scan_directories(self.dir_path, max_depth=DEFAULT_SCAN_MAX_DEPTH)
+
+        sub_dirs = [item.path for item in scan_results]
+
+        if len(scan_results) <= 1:
             # Single directory mode (original behavior)
             # 若扫描到的实际目录与根目录不同（根目录无图片、子目录有图片），使用实际目录
-            single_dir = sub_dirs[0] if sub_dirs else self.dir_path
+            single_dir = scan_results[0].path if scan_results else self.dir_path
             processor = PhotoProcessor(
                 dir_path=single_dir,
                 settings=settings,
@@ -410,21 +416,11 @@ class WorkerThread(threading.Thread):
             adv_config = get_advanced_config()
 
             log_callback(f"\n{'='*56}", "info")
-            log_callback(f"  \U0001f4c2 Batch mode: {len(sub_dirs)} directories detected", "info")
+            log_callback(f"  \U0001f4c2 Batch mode: {len(scan_results)} directories detected", "info")
             log_callback(f"{'='*56}", "info")
 
             # Count total photos across all dirs for progress
-            from constants import IMAGE_EXTENSIONS
-            _photo_exts = set(e.lower() for e in IMAGE_EXTENSIONS)
-            total_all = 0
-            dir_photo_counts = {}
-            for d in sub_dirs:
-                count = 0
-                for f in os.listdir(d):
-                    if os.path.splitext(f)[1].lower() in _photo_exts:
-                        count += 1
-                dir_photo_counts[d] = count
-                total_all += count
+            total_all = sum(item.photo_count for item in scan_results)
 
             processed_so_far = 0
             aggregated = {
@@ -438,9 +434,10 @@ class WorkerThread(threading.Thread):
             import time as _time
             aggregated['start_time'] = _time.time()
 
-            for idx, sub_dir in enumerate(sub_dirs, 1):
+            for idx, scanned_dir in enumerate(scan_results, 1):
+                sub_dir = scanned_dir.path
                 rel = os.path.relpath(sub_dir, self.dir_path)
-                n_photos = dir_photo_counts.get(sub_dir, 0)
+                n_photos = scanned_dir.photo_count
                 if n_photos == 0:
                     continue
 
@@ -1955,15 +1952,25 @@ class SuperPickyMainWindow(QMainWindow):
             return
 
         # 2. 照片数量预扫描（阻断型）
+        scan_results = None
         try:
-            import os as _os
-            from constants import IMAGE_EXTENSIONS
-            _ext_set = set(e.lower() for e in IMAGE_EXTENSIONS)
-            _photo_count = sum(
-                1 for _e in _os.scandir(self.directory_path)
-                if _e.is_file() and _os.path.splitext(_e.name)[1].lower() in _ext_set
-            )
-            if _photo_count == 0:
+            from core.recursive_scanner import DEFAULT_SCAN_MAX_DEPTH, is_dangerous_root, scan_directories
+
+            is_dangerous, reason = is_dangerous_root(self.directory_path)
+            if is_dangerous:
+                StyledMessageBox.warning(
+                    self,
+                    self.i18n.t("health.dangerous_dir_title"),
+                    self.i18n.t(
+                        "health.dangerous_dir_msg",
+                        directory=self.directory_path,
+                        reason=reason,
+                    ),
+                )
+                return
+
+            scan_results = scan_directories(self.directory_path, max_depth=DEFAULT_SCAN_MAX_DEPTH)
+            if not scan_results:
                 StyledMessageBox.warning(
                     self,
                     self.i18n.t("health.no_photos_title"),
@@ -2020,7 +2027,8 @@ class SuperPickyMainWindow(QMainWindow):
             ui_settings,
             self.worker_signals,
             self.i18n,
-            resume=resume_processing
+            resume=resume_processing,
+            scan_results=scan_results,
         )
         self.worker.start()
 
