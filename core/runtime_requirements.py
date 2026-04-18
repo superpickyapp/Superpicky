@@ -33,6 +33,7 @@ class RuntimeRequirements:
 
     torch_version: str
     torchvision_version: str
+    torchaudio_version: str
     timm_version: str
     extra_index_urls: list[str]
     index_url: str | None = None
@@ -50,19 +51,42 @@ class RuntimeRequirements:
             return package_name
         return f"{package_name}=={normalized_version}"
 
-    def to_requirements_string(self) -> str:
+    def to_requirements_string(
+        self,
+        *,
+        include_indexes: bool = True,
+        package_urls: dict[str, str] | None = None,
+    ) -> str:
         """
         Convert configuration to pip requirements file format.
 
         将配置转换为 pip requirements 文件格式。
         """
         lines = []
-        if self.index_url:
+        package_urls = package_urls or {}
+        if include_indexes and self.index_url:
             lines.append(f"--index-url {self.index_url}")
-        for url in self.extra_index_urls:
-            lines.append(f"--extra-index-url {url}")
-        lines.append(self._format_pinned_requirement("torch", self.torch_version))
-        lines.append(self._format_pinned_requirement("torchvision", self.torchvision_version))
+        if include_indexes:
+            for url in self.extra_index_urls:
+                lines.append(f"--extra-index-url {url}")
+        lines.append(
+            package_urls.get(
+                "torch",
+                self._format_pinned_requirement("torch", self.torch_version),
+            )
+        )
+        lines.append(
+            package_urls.get(
+                "torchvision",
+                self._format_pinned_requirement("torchvision", self.torchvision_version),
+            )
+        )
+        lines.append(
+            package_urls.get(
+                "torchaudio",
+                self._format_pinned_requirement("torchaudio", self.torchaudio_version),
+            )
+        )
         lines.append(f"timm{self.timm_version}")
         return "\n".join(lines)
 
@@ -72,6 +96,7 @@ def get_cpu_requirements() -> RuntimeRequirements:
     return RuntimeRequirements(
         torch_version="2.7.1+cpu",
         torchvision_version="0.22.1+cpu",
+        torchaudio_version="2.7.1+cpu",
         timm_version=">=0.9.0",
         extra_index_urls=[
             "https://mirror.nju.edu.cn/pytorch/whl/cpu/",
@@ -85,6 +110,7 @@ def get_cuda_requirements() -> RuntimeRequirements:
     return RuntimeRequirements(
         torch_version="2.7.1+cu118",
         torchvision_version="0.22.1+cu118",
+        torchaudio_version="2.7.1+cu118",
         timm_version=">=0.9.0",
         extra_index_urls=[
             "https://mirror.nju.edu.cn/pytorch/whl/cu118/",
@@ -97,7 +123,8 @@ def get_mac_requirements() -> RuntimeRequirements:
     """Get runtime requirements for macOS builds. / 获取 macOS 构建的运行时依赖。"""
     return RuntimeRequirements(
         torch_version="2.8.0",
-        torchvision_version="0.23.0",
+        torchvision_version="",
+        torchaudio_version="",
         timm_version=">=0.9.0",
         extra_index_urls=[],
     )

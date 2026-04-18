@@ -509,6 +509,8 @@ class EnvironmentRepairDialog(QDialog):
         self.i18n = i18n
         self.config = config
         self.manager = InitializationManager(self)
+        self._repair_running = False
+        self._closing_after_interrupt = False
         self._setup_ui()
         self._progress = InitializationProgressBinder(
             self.manager,
@@ -562,10 +564,10 @@ class EnvironmentRepairDialog(QDialog):
         self.retry_btn.hide()
         btn_row.addWidget(self.retry_btn)
 
-        close_btn = QPushButton(self.i18n.t("update.close"))
-        close_btn.setObjectName("secondary")
-        close_btn.clicked.connect(self.accept)
-        btn_row.addWidget(close_btn)
+        self.close_btn = QPushButton(self.i18n.t("update.close"))
+        self.close_btn.setObjectName("secondary")
+        self.close_btn.clicked.connect(self.reject)
+        btn_row.addWidget(self.close_btn)
         layout.addLayout(btn_row)
 
     def _repair_options(self) -> dict:
@@ -578,12 +580,15 @@ class EnvironmentRepairDialog(QDialog):
 
     def start_repair(self) -> None:
         self.retry_btn.hide()
+        self._repair_running = True
+        self._closing_after_interrupt = False
         self._progress.reset()
         self.stage_label.setText(self.i18n.t("repair.running"))
         self.log_view.append(self.i18n.t("repair.log_retry"))
         self.manager.start_repair(self._repair_options())
 
     def _on_repair_success(self, _summary: object) -> None:
+        self._repair_running = False
         self.stage_label.setText(self.i18n.t("repair.success"))
         self.log_view.append(f"[done] {self.i18n.t('repair.success')}")
         parent = self.parent()
@@ -591,6 +596,12 @@ class EnvironmentRepairDialog(QDialog):
             cast(_PostInitializationFlowHost, parent)._resume_post_initialization_flow()
 
     def _on_repair_failure(self, summary: object) -> None:
+        self._repair_running = False
+        if isinstance(summary, dict) and summary.get("interrupted"):
+            if not self._closing_after_interrupt:
+                self.stage_label.setText(self.i18n.t("onboarding.initialization_interrupted"))
+                self.log_view.append(self.i18n.t("onboarding.initialization_interrupted"))
+            return
         self.retry_btn.show()
         error_text = (
             summary.get("error", self.i18n.t("repair.failed"))
@@ -599,6 +610,33 @@ class EnvironmentRepairDialog(QDialog):
         )
         self.stage_label.setText(error_text)
         self.log_view.append(f"[failed] {error_text}")
+
+    def _confirm_interrupt_repair(self) -> bool:
+        reply = StyledMessageBox.question(
+            self,
+            self.i18n.t("onboarding.close_confirm_title"),
+            self.i18n.t("onboarding.close_confirm_message"),
+            yes_text=self.i18n.t("onboarding.close_confirm_exit"),
+            no_text=self.i18n.t("onboarding.close_confirm_continue"),
+        )
+        return reply == StyledMessageBox.Yes
+
+    def reject(self) -> None:
+        if self._repair_running and not self._closing_after_interrupt:
+            if not self._confirm_interrupt_repair():
+                return
+            self._closing_after_interrupt = True
+            self.manager.cancel()
+        super().reject()
+
+    def closeEvent(self, event) -> None:
+        if self._repair_running and not self._closing_after_interrupt:
+            if not self._confirm_interrupt_repair():
+                event.ignore()
+                return
+            self._closing_after_interrupt = True
+            self.manager.cancel()
+        super().closeEvent(event)
 
 
 class WelcomeOnboardingDialog(QDialog):
@@ -992,8 +1030,8 @@ class WelcomeOnboardingDialog(QDialog):
         self.next_btn.setEnabled(True)
         self.retry_btn.hide()
         self._refresh_runtime_status_page()
+        self._refresh_nav_state()
         QApplication.processEvents()
-        QTimer.singleShot(300, self._complete_onboarding)
 
     def _on_initialization_failed(self, summary: object) -> None:
         self._initialization_complete = False

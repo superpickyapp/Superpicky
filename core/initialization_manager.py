@@ -24,6 +24,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
@@ -38,12 +39,13 @@ from config import (
 )
 from core.initialization_progress import (
     InitializationProgressEvent,
+    PROGRESS_KIND_DOWNLOAD,
     PROGRESS_KIND_RUNTIME,
     STAGE_DOWNLOADING,
     STAGE_PREPARING_RUNTIME,
     parse_pip_raw_progress_line,
 )
-from core.runtime_requirements import get_runtime_requirements
+from core.runtime_requirements import RuntimeRequirements, get_runtime_requirements
 from core.source_probe import pick_best_source, probe_sources
 from scripts.download_models import (
     download_resource,
@@ -55,21 +57,6 @@ logging.basicConfig(level=logging.INFO)
 
 
 PIPY_SOURCES = [
-    {"name": "cernet", "url": "https://mirrors.cernet.edu.cn/pypi/web/simple"},
-    {"name": "official", "url": "https://pypi.org/simple"},
-]
-
-CUDA_TORCH_SOURCES = [
-    {"name": "nju-cu118", "url": "https://mirror.nju.edu.cn/pytorch/whl/cu118/"},
-    {"name": "official-cu118", "url": "https://download.pytorch.org/whl/cu118"},
-]
-
-CPU_TORCH_SOURCES = [
-    {"name": "official-cpu", "url": "https://mirrors.cernet.edu.cn/pypi/web/simple"},
-    {"name": "official", "url": "https://pypi.org/simple"},
-]
-
-MAC_TORCH_SOURCES = [
     {"name": "cernet", "url": "https://mirrors.cernet.edu.cn/pypi/web/simple"},
     {"name": "official", "url": "https://pypi.org/simple"},
 ]
@@ -204,7 +191,10 @@ class InitializationManager(QObject):
     def _resolve_runtime_requirements_path(self, runtime_variant: str) -> Path:
         """Resolve runtime requirements file path for backward compatibility."""
         requirements = get_runtime_requirements(runtime_variant) # pyright: ignore[reportArgumentType]
-        requirements_content = requirements.to_requirements_string()
+        requirements_content = requirements.to_requirements_string(
+            include_indexes=False,
+            package_urls=self._selected_torch_package_urls(runtime_variant),
+        )
 
         temp_file = tempfile.NamedTemporaryFile(
             mode="w",
@@ -221,6 +211,71 @@ class InitializationManager(QObject):
             temp_file.close()
             Path(temp_file.name).unlink(missing_ok=True)
             raise
+
+    def _runtime_requirements(self, runtime_variant: str) -> RuntimeRequirements:
+        """
+        Return the unified runtime requirement definition for one variant.
+
+        返回指定运行时变体的统一依赖定义。
+        """
+        return get_runtime_requirements(runtime_variant)  # pyright: ignore[reportArgumentType]
+
+    def _selected_torch_package_urls(self, runtime_variant: str) -> dict[str, str]:
+        """
+        Build direct wheel references for Torch packages on Windows runtime installs.
+
+        为 Windows 运行时安装构建 Torch 系列包的直链引用。
+        """
+        if runtime_variant not in ("cpu", "cuda"):
+            return {}
+        primary_source = self._source_map.get("torch_primary", "").strip()
+        if not primary_source or sys.platform != "win32":
+            return {}
+
+        requirements = self._runtime_requirements(runtime_variant)
+        python_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
+        abi_tag = python_tag
+        platform_tag = "win_amd64"
+        source_base = primary_source.rstrip("/")
+
+        package_versions = {
+            "torch": requirements.torch_version,
+            "torchvision": requirements.torchvision_version,
+            "torchaudio": requirements.torchaudio_version,
+        }
+        selected_urls: dict[str, str] = {}
+        for package_name, version in package_versions.items():
+            normalized_version = (version or "").strip()
+            if not normalized_version:
+                continue
+            filename = (
+                f"{package_name}-{normalized_version}-{python_tag}-{abi_tag}-{platform_tag}.whl"
+            )
+            quoted_filename = urllib.parse.quote(filename)
+            selected_urls[package_name] = (
+                f"{package_name} @ {source_base}/{quoted_filename}"
+            )
+        return selected_urls
+
+    @staticmethod
+    def _torch_source_candidates(runtime_variant: str) -> list[dict[str, str]]:
+        """
+        Build Torch wheel source candidates from the shared runtime requirements.
+
+        基于统一运行时依赖定义构建 Torch wheel 源候选列表。
+        """
+        requirements = get_runtime_requirements(runtime_variant)  # pyright: ignore[reportArgumentType]
+        candidates: list[dict[str, str]] = []
+        for index, url in enumerate(requirements.extra_index_urls):
+            lowered = url.lower()
+            if "mirror" in lowered or "nju" in lowered:
+                name = f"mirror-{index}"
+            elif "download.pytorch.org" in lowered:
+                name = f"official-{index}"
+            else:
+                name = f"torch-{index}"
+            candidates.append({"name": name, "url": url})
+        return candidates
 
     @staticmethod
     def _normalize_features(selected_features: Optional[Iterable[str]]) -> list[str]:
@@ -242,6 +297,7 @@ class InitializationManager(QObject):
             "resolved_source_map": self.config.set_resolved_source_map,
             "last_init_error": self.config.set_last_init_error,
             "last_init_exit_reason": self.config.set_last_init_exit_reason,
+            "last_init_mode": self.config.set_last_init_mode,
             "is_first_run": self.config.set_is_first_run,
         }
         for key, value in updates.items():
@@ -268,6 +324,36 @@ class InitializationManager(QObject):
             event.message,
             event.item_index or 0,
             event.item_count or 0,
+        )
+
+    def _emit_phase_completion(
+        self,
+        progress_kind: str,
+        message: str,
+        *,
+        bytes_done: int | None = None,
+        bytes_total: int | None = None,
+    ) -> None:
+        """
+        Emit an explicit terminal progress event for one visual phase.
+
+        为单个视觉阶段发出显式终态进度事件。
+        """
+        stage = (
+            STAGE_PREPARING_RUNTIME
+            if progress_kind == PROGRESS_KIND_RUNTIME
+            else STAGE_DOWNLOADING
+        )
+        self._emit_progress_event(
+            InitializationProgressEvent(
+                stage=stage,
+                progress_kind=progress_kind,
+                message=message,
+                ratio=1.0,
+                bytes_done=bytes_done,
+                bytes_total=bytes_total,
+                is_terminal=True,
+            )
         )
 
     def _installation_root(self) -> Path:
@@ -498,6 +584,10 @@ class InitializationManager(QObject):
         """
         if self.check_runtime_health():
             self._emit_item_status("runtime", "done", "Runtime already healthy")
+            self._emit_phase_completion(
+                PROGRESS_KIND_RUNTIME,
+                f"{runtime_variant} runtime already available",
+            )
             logging.info("运行时环境健康，无需修复")
             return False
 
@@ -516,6 +606,10 @@ class InitializationManager(QObject):
         start_time = time.perf_counter()
         try:
             self._prepare_runtime(runtime_variant)
+            self._emit_phase_completion(
+                PROGRESS_KIND_RUNTIME,
+                f"{runtime_variant} runtime ready",
+            )
             elapsed = time.perf_counter() - start_time
             logging.info("运行时环境修复完成，耗时 %.2f 秒", elapsed)
             return True
@@ -586,6 +680,10 @@ class InitializationManager(QObject):
             total_items,
             elapsed,
         )
+        self._emit_phase_completion(
+            PROGRESS_KIND_DOWNLOAD,
+            "All required resources ready",
+        )
 
         return True
 
@@ -614,6 +712,7 @@ class InitializationManager(QObject):
         try:
             self._raise_if_cancelled()
             selected_features = self._normalize_features(options.get("features"))
+            self._last_mode = mode
             runtime_location = self.choose_runtime_install_location(
                 options.get("runtime_install_location")
                 or self.config.runtime_install_location_preference
@@ -623,6 +722,7 @@ class InitializationManager(QObject):
                 initialization_in_progress=(mode == "init"),
                 last_init_error=None,
                 last_init_exit_reason="none",
+                last_init_mode=mode,
                 runtime_install_location_preference=runtime_location.key,
                 resolved_runtime_dir=str(runtime_location.runtime_dir),
             )
@@ -645,9 +745,14 @@ class InitializationManager(QObject):
             self._emit_item_status(
                 "source_probe", "done", f"PyPI -> {self._source_map['pypi_primary']}"
             )
-            self._emit_item_status(
-                "source_probe", "done", f"Torch -> {self._source_map['torch_primary']}"
-            )
+            if self._source_map.get("torch_primary"):
+                self._emit_item_status(
+                    "source_probe", "done", f"Torch -> {self._source_map['torch_primary']}"
+                )
+            else:
+                self._emit_item_status(
+                    "source_probe", "done", "Torch -> bundled runtime"
+                )
             self._save_config(resolved_source_map=self._source_map)
 
             if options.get("auto_update_enabled", True):
@@ -669,7 +774,10 @@ class InitializationManager(QObject):
                     "Initialization completed with missing runtime or resources"
                 )
 
-            success_updates: dict[str, object] = {"initialization_in_progress": False}
+            success_updates: dict[str, object] = {
+                "initialization_in_progress": False,
+                "last_init_mode": "none",
+            }
             if mode == "init":
                 success_updates.update(
                     initialization_completed=True,
@@ -702,6 +810,7 @@ class InitializationManager(QObject):
                 initialization_in_progress=False,
                 last_init_error=None,
                 last_init_exit_reason="interrupted",
+                last_init_mode=mode,
             )
             self.finished.emit(False, {"interrupted": True, "mode": mode})
         except Exception as exc:
@@ -709,6 +818,7 @@ class InitializationManager(QObject):
                 initialization_in_progress=False,
                 last_init_error=str(exc),
                 last_init_exit_reason="failed",
+                last_init_mode=mode,
             )
             self._emit_stage(STAGE_FAILED, str(exc))
             self.finished.emit(False, {"error": str(exc), "mode": mode})
@@ -871,19 +981,17 @@ class InitializationManager(QObject):
         pypi_results = probe_sources("pypi", PIPY_SOURCES)
         best_pypi = self._pick_preferred_source(pypi_results)
 
-        torch_sources = MAC_TORCH_SOURCES
-        if runtime_variant == "cuda":
-            torch_sources = CUDA_TORCH_SOURCES
-        elif runtime_variant == "cpu":
-            torch_sources = CPU_TORCH_SOURCES
-
-        torch_results = probe_sources(f"torch-{runtime_variant}", torch_sources)
-        best_torch = self._pick_preferred_source(torch_results)
-
         pypi_primary = best_pypi.url if best_pypi else PIPY_SOURCES[0]["url"]
         pypi_fallback = self._resolve_fallback_url(pypi_results, pypi_primary)
-        torch_primary = best_torch.url if best_torch else torch_sources[0]["url"]
-        torch_fallback = self._resolve_fallback_url(torch_results, torch_primary)
+
+        torch_primary = ""
+        torch_fallback = ""
+        torch_sources = self._torch_source_candidates(runtime_variant)
+        if torch_sources:
+            torch_results = probe_sources(f"torch-{runtime_variant}", torch_sources)
+            best_torch = self._pick_preferred_source(torch_results)
+            torch_primary = best_torch.url if best_torch else torch_sources[0]["url"]
+            torch_fallback = self._resolve_fallback_url(torch_results, torch_primary)
 
         selected = {
             "pypi_primary": pypi_primary,
@@ -950,6 +1058,7 @@ class InitializationManager(QObject):
             / ("pip.exe" if os.name == "nt" else "pip")
         )
         requirements_file = self._resolve_runtime_requirements_path(runtime_variant)
+        runtime_requirements = self._runtime_requirements(runtime_variant)
         install_cmd = [
             str(pip_executable),
             "install",
@@ -963,9 +1072,12 @@ class InitializationManager(QObject):
             "--extra-index-url",
             self._source_map["pypi_fallback"],
         ]
-        if runtime_variant in ("cpu", "cuda"):
+        if runtime_requirements.extra_index_urls:
             install_cmd.extend(["--extra-index-url", self._source_map["torch_primary"]])
-            if self._source_map["torch_fallback"] != self._source_map["torch_primary"]:
+            if (
+                self._source_map["torch_fallback"]
+                and self._source_map["torch_fallback"] != self._source_map["torch_primary"]
+            ):
                 install_cmd.extend(
                     ["--extra-index-url", self._source_map["torch_fallback"]]
                 )
@@ -1010,6 +1122,7 @@ class InitializationManager(QObject):
         requirements_file = self._resolve_runtime_requirements_path(runtime_variant)
         runtime_site_packages = self._runtime_dir / "site-packages"
         runtime_site_packages.mkdir(parents=True, exist_ok=True)
+        runtime_requirements = self._runtime_requirements(runtime_variant)
 
         command = [
             str(Path(sys.executable).resolve()),
@@ -1023,9 +1136,12 @@ class InitializationManager(QObject):
             "--extra-index-url",
             self._source_map["pypi_fallback"],
         ]
-        if runtime_variant in ("cpu", "cuda"):
+        if runtime_requirements.extra_index_urls:
             command.extend(["--extra-index-url", self._source_map["torch_primary"]])
-            if self._source_map["torch_fallback"] != self._source_map["torch_primary"]:
+            if (
+                self._source_map["torch_fallback"]
+                and self._source_map["torch_fallback"] != self._source_map["torch_primary"]
+            ):
                 command.extend(
                     ["--extra-index-url", self._source_map["torch_fallback"]]
                 )

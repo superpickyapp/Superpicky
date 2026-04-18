@@ -3510,6 +3510,7 @@ class SuperPickyMainWindow(QMainWindow):
             needs_init
             and not self.config.is_first_run
             and self.config.last_init_exit_reason == "interrupted"
+            and self.config.last_init_mode == "repair"
         ):
             self._show_environment_repair_dialog()
             return

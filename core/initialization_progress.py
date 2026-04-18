@@ -151,32 +151,28 @@ class InitializationProgressModel:
 
     长耗时初始化任务的确定性进度动画模型。
 
-    The model combines three inputs:
-    1. Real progress as a non-regressing lower bound.
-    2. A time-driven target that keeps long tasks within the 400-600 second visual window.
-    3. Small bounded oscillations that simulate natural speed fluctuation without
-       producing visible backward movement or large real-progress drift.
+    The model uses fixed visual budgets per phase and lets time drive the bar.
+    Real progress is still tracked for logging and phase completion, but it no
+    longer directly drives the visible percentage.
 
-    该模型组合三类输入：
-    1. 真实进度，作为不可回退的下界。
-    2. 时间驱动目标，用于让长任务的视觉窗口保持在 400-600 秒区间。
-    3. 有界的小幅波动，用于模拟自然的速度抖动，同时避免明显倒退或过度偏离真实进度。
+    该模型为每个阶段分配固定视觉预算，并以时间作为进度条主驱动。
+    真实进度仍用于日志与阶段完成判定，但不再直接驱动可见百分比。
     """
 
     PHASES: dict[str, ProgressPhaseProfile] = {
         PROGRESS_KIND_RUNTIME: ProgressPhaseProfile(
             key=PROGRESS_KIND_RUNTIME,
             start_percent=0.0,
-            end_percent=34.0,
-            min_duration_seconds=145.0,
-            max_duration_seconds=220.0,
+            end_percent=30.0,
+            min_duration_seconds=2.0,
+            max_duration_seconds=420.0,
         ),
         PROGRESS_KIND_DOWNLOAD: ProgressPhaseProfile(
             key=PROGRESS_KIND_DOWNLOAD,
-            start_percent=34.0,
+            start_percent=30.0,
             end_percent=99.0,
             min_duration_seconds=250.0,
-            max_duration_seconds=380.0,
+            max_duration_seconds=420.0,
         ),
     }
 
@@ -209,7 +205,12 @@ class InitializationProgressModel:
         self._active_phase: str | None = None
         self._phase_started_at = now
         self._phase_target_seconds = 0.0
-        self._phase_peak_target = 0.0
+        self._phase_complete_requested = False
+        self._phase_completion_started_at: float | None = None
+        self._phase_completion_from = 0.0
+        self._phase_completion_duration = 0.0
+        self._phase_completion_target = 0.0
+        self._phase_was_observed = False
         self._finish_started_at: float | None = None
         self._finish_duration = 0.0
         self._finish_from = 0.0
@@ -228,8 +229,6 @@ class InitializationProgressModel:
         elif stage == STAGE_VERIFYING:
             self._actual_percent = max(self._actual_percent, 99.0)
             self._target_percent = max(self._target_percent, 99.0)
-        elif stage in {STAGE_READY, STAGE_FAILED}:
-            self._phase_peak_target = max(self._phase_peak_target, self._target_percent)
         return self.advance(now)
 
     def on_progress_event(
@@ -249,6 +248,7 @@ class InitializationProgressModel:
                 now,
                 bytes_total=event.bytes_total,
                 item_count=event.item_count,
+                event=event,
             )
             phase = self.PHASES[phase_key]
             ratio = event.normalized_ratio()
@@ -272,7 +272,7 @@ class InitializationProgressModel:
         self._actual_percent = max(self._actual_percent, 100.0)
         self._target_percent = max(self._target_percent, 100.0)
         self._finish_started_at = now
-        self._finish_from = max(self._display_percent, min(self._actual_percent, 99.5))
+        self._finish_from = max(self._display_percent, min(self._target_percent, 99.5))
         remaining = max(0.0, 100.0 - self._finish_from)
         self._finish_duration = min(2.0, max(1.0, 1.0 + (remaining / 60.0)))
         self._settled = False
@@ -297,10 +297,27 @@ class InitializationProgressModel:
         if self._active_phase is None:
             return self.snapshot()
 
+        if self._phase_completion_started_at is not None:
+            elapsed = max(0.0, now - self._phase_completion_started_at)
+            ratio = min(1.0, elapsed / max(0.001, self._phase_completion_duration))
+            eased = 1.0 - (1.0 - ratio) ** 3
+            target = self._phase_completion_target
+            self._display_percent = self._phase_completion_from + (
+                (target - self._phase_completion_from) * eased
+            )
+            self._target_percent = max(self._target_percent, self._display_percent)
+            if ratio >= 1.0:
+                self._display_percent = target
+                self._target_percent = max(self._target_percent, target)
+                self._phase_completion_started_at = None
+            return self.snapshot()
+
         time_target = self._compute_time_target(now)
-        desired = max(self._actual_percent, time_target)
+        desired = time_target
         self._target_percent = max(self._target_percent, desired)
         self._display_percent = max(self._display_percent, desired)
+        if self._phase_complete_requested and self._should_begin_phase_completion(now):
+            self._start_phase_completion(now)
         return self.snapshot()
 
     def snapshot(self) -> ProgressSnapshot:
@@ -336,6 +353,7 @@ class InitializationProgressModel:
         *,
         bytes_total: int | None = None,
         item_count: int | None = None,
+        event: InitializationProgressEvent | None = None,
     ) -> None:
         """
         Enter or retune a visual phase when new information arrives.
@@ -347,18 +365,29 @@ class InitializationProgressModel:
         if is_new_phase:
             self._active_phase = phase_key
             self._phase_started_at = now
-            self._phase_peak_target = max(self._display_percent, profile.start_percent)
+            self._phase_complete_requested = False
+            self._phase_completion_started_at = None
+            self._phase_completion_from = max(self._display_percent, profile.start_percent)
+            self._phase_completion_duration = 0.0
+            self._phase_completion_target = profile.end_percent
+            self._phase_was_observed = False
             self._display_percent = max(self._display_percent, profile.start_percent)
             self._actual_percent = max(self._actual_percent, profile.start_percent)
 
-        # When size information appears later, only retune the target duration while
-        # keeping the current elapsed progress and monotonic target intact.
-        # 当后续才拿到大小信息时，只重算目标时长，不回退当前时间进度和单调目标值。
         self._phase_target_seconds = self._choose_target_duration(
             profile,
             bytes_total=bytes_total,
             item_count=item_count,
+            event=event,
         )
+        if event is not None:
+            self._phase_was_observed = self._phase_was_observed or (
+                event.bytes_total is not None
+                or event.bytes_done is not None
+                or event.normalized_ratio() is not None
+            )
+            if event.is_terminal:
+                self._phase_complete_requested = True
 
     def _choose_target_duration(
         self,
@@ -366,6 +395,7 @@ class InitializationProgressModel:
         *,
         bytes_total: int | None,
         item_count: int | None,
+        event: InitializationProgressEvent | None,
     ) -> float:
         """
         Choose a phase duration inside the configured long-task window.
@@ -373,17 +403,19 @@ class InitializationProgressModel:
         在配置好的长任务窗口内选择当前阶段的目标时长。
         """
         if profile.key == PROGRESS_KIND_RUNTIME:
-            base = 180.0
+            if event is not None and event.is_terminal and not self._phase_was_observed:
+                return 4.0 + self._small_duration_jitter(profile.key)
+            base = 400.0 + self._large_duration_jitter(profile.key)
             if bytes_total and bytes_total > 0:
-                base += min(35.0, bytes_total / float(1024 ** 3) * 20.0)
+                base += min(18.0, bytes_total / float(1024 ** 3) * 6.0)
             return min(profile.max_duration_seconds, max(profile.min_duration_seconds, base))
 
-        base = 300.0
+        base = 400.0 + self._large_duration_jitter(profile.key)
         if bytes_total and bytes_total > 0:
             size_gib = bytes_total / float(1024 ** 3)
-            base += min(55.0, size_gib * 45.0)
+            base += min(22.0, size_gib * 8.0)
         if item_count and item_count > 1:
-            base += min(35.0, float(item_count - 1) * 8.0)
+            base += min(18.0, float(item_count - 1) * 3.0)
         return min(profile.max_duration_seconds, max(profile.min_duration_seconds, base))
 
     def _compute_time_target(self, now: float) -> float:
@@ -400,8 +432,7 @@ class InitializationProgressModel:
         jitter = self._bounded_jitter(profile, elapsed, progress_ratio)
         raw_ratio = min(0.985, max(0.0, progress_ratio + jitter))
         target = profile.start_percent + (profile.span * raw_ratio)
-        self._phase_peak_target = max(self._phase_peak_target, target)
-        return self._phase_peak_target
+        return max(self._display_percent, target)
 
     def _bounded_jitter(
         self,
@@ -415,7 +446,7 @@ class InitializationProgressModel:
         返回一个小幅、确定性的振荡量，用于制造更自然的速度变化。
         """
         damping = max(0.18, 1.0 - progress_ratio)
-        amplitude = 0.016 * damping
+        amplitude = 0.014 * damping
         if profile.key == PROGRESS_KIND_DOWNLOAD:
             amplitude += 0.004
 
@@ -425,4 +456,49 @@ class InitializationProgressModel:
             + 0.2 * math.sin((elapsed * 0.51) + (self._seed * 2.3))
         )
         jitter = (wave / 1.65) * amplitude
-        return min(0.022, max(-0.018, jitter))
+        return min(0.018, max(-0.014, jitter))
+
+    def _small_duration_jitter(self, phase_key: str) -> float:
+        """
+        Return a deterministic short-duration jitter in seconds.
+
+        返回一个确定性的短时长抖动（秒）。
+        """
+        offset = self._seed + (0.37 if phase_key == PROGRESS_KIND_RUNTIME else 0.91)
+        return math.sin(offset) * 1.8
+
+    def _large_duration_jitter(self, phase_key: str) -> float:
+        """
+        Return a deterministic long-duration jitter in seconds.
+
+        返回一个确定性的长时长抖动（秒）。
+        """
+        offset = self._seed + (1.13 if phase_key == PROGRESS_KIND_RUNTIME else 2.41)
+        return math.sin(offset) * 18.0
+
+    def _should_begin_phase_completion(self, now: float) -> bool:
+        """
+        Decide whether the phase may start its completion settle animation.
+
+        判断阶段是否可以开始进入完成收敛动画。
+        """
+        if self._active_phase is None:
+            return False
+        elapsed = max(0.0, now - self._phase_started_at)
+        return elapsed >= self._phase_target_seconds * 0.92
+
+    def _start_phase_completion(self, now: float) -> None:
+        """
+        Start a short settle animation into the phase end percentage.
+
+        启动一个短暂的收敛动画，把进度推进到当前阶段的终点百分比。
+        """
+        if self._active_phase is None:
+            return
+        profile = self.PHASES[self._active_phase]
+        self._phase_completion_started_at = now
+        self._phase_completion_from = max(self._display_percent, profile.start_percent)
+        remaining = max(0.0, profile.end_percent - self._phase_completion_from)
+        self._phase_completion_duration = min(1.8, max(0.8, 0.6 + (remaining / 45.0)))
+        self._phase_completion_target = profile.end_percent
+        self._phase_complete_requested = False
