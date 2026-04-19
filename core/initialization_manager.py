@@ -759,6 +759,16 @@ class InitializationManager(QObject):
                 self._emit_stage(STAGE_CHECKING_UPDATES, "Checking updates...")
                 self._check_updates_if_enabled()
             else:
+                try:
+                    from tools.patch_manager import safe_clear_patch
+
+                    cleared, clear_message = safe_clear_patch()
+                    clear_status = "done" if cleared else "warning"
+                    self._emit_item_status("updates", clear_status, clear_message)
+                except Exception as exc:
+                    self._emit_item_status(
+                        "updates", "warning", f"Patch cleanup skipped: {exc}"
+                    )
                 self._emit_item_status(
                     "updates", "skipped", "Automatic updates disabled by user"
                 )

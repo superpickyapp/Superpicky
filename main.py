@@ -33,6 +33,14 @@ multiprocessing.freeze_support()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
+def _should_enable_patch_overlay() -> bool:
+    """
+    仅允许打包环境启用在线补丁覆盖层。
+    Only allow the online patch overlay in packaged environments.
+    """
+    return bool(getattr(sys, "frozen", False))
+
+
 def _inject_patch_path():
     """
     注入在线补丁目录并记录真实应用根目录。
@@ -59,7 +67,7 @@ def _inject_patch_path():
         _patch_dir = os.path.join(
             os.path.expanduser("~"), ".config", "SuperPicky", "code_updates"
         )
-    if os.path.isdir(_patch_dir) and _patch_dir not in sys.path:
+    if _should_enable_patch_overlay() and os.path.isdir(_patch_dir) and _patch_dir not in sys.path:
         sys.path.insert(0, _patch_dir)
     if get_runtime_app_root() is None:
         if getattr(sys, "frozen", False) and sys.platform == "win32":

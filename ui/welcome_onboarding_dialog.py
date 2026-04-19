@@ -353,7 +353,7 @@ class InitializationProgressBinder(QObject):
         manager: InitializationManager,
         *,
         set_stage_text: Callable[[str], None],
-        set_progress_value: Callable[[int], None],
+        set_progress_value: Callable[[float], None],
         append_log: Callable[[str], None],
         on_success: Callable[[object], None],
         on_failure: Callable[[object], None],
@@ -648,7 +648,7 @@ class WelcomeOnboardingDialog(QDialog):
         self.config = get_advanced_config()
         self.current_page = 0
         self.selected_level = self.config.skill_level or "intermediate"
-        self.auto_update_enabled = True
+        self.auto_update_enabled = self.config.auto_check_updates
         self._dots: list[QLabel] = []
         self._skill_cards: dict[str, SkillLevelCard] = {}
         self._update_cards: dict[str, SelectableCard] = {}

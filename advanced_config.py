@@ -393,7 +393,7 @@ class AdvancedConfig:
 
     @property
     def auto_check_updates(self) -> bool:
-        return self.config.get("auto_check_updates", True)
+        return self.config.get("auto_check_updates", False)
 
     def set_auto_check_updates(self, value: bool):
         """设置启动时是否自动检查更新。"""
