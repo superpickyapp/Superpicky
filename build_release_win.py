@@ -37,6 +37,7 @@ CPU_VENV_DIR = ROOT_DIR / ".venv"
 CUDA_VENV_DIR = ROOT_DIR / ".venv-cuda"
 DEFAULT_PATCH_OUTPUT_ROOT = ROOT_DIR / "output"
 STANDARD_INNO_TEMPLATE = INNO_DIR / "SuperPicky.iss"
+LITE_INNO_TEMPLATE = INNO_DIR / "SuperPicky-lite.iss"
 PATCH_INNO_TEMPLATE = INNO_DIR / "SuperPicky_CUDA_Patch.iss"
 INNO_LANGUAGE_FILE = INNO_DIR / "ChineseSimplified.isl"
 CPU_REQUIREMENTS_FILE = ROOT_DIR / "requirements.txt"
@@ -445,17 +446,44 @@ def archive_name_for(label: str, app_version: str, commit_hash: str) -> str:
     return f"{APP_NAME}_Win64_{app_version}_{commit_hash}_{label}.zip"
 
 
-def update_inno_content(content: str, *, app_version: str, commit_hash: str, patch: bool, label: str | None = None) -> str:
-    version_value = f"{app_version}-{commit_hash}"
-    if patch:
-        output_base = f"SuperPicky_CUDA_Patch_Win64_{app_version}_{commit_hash}"
-    elif label == "lite":
-        output_base = f"SuperPicky_Lite_Setup_Win64_{app_version}_{commit_hash}"
-    else:
-        output_base = f"SuperPicky_Setup_Win64_{app_version}_{commit_hash}"
+def normalize_version(version: str) -> str:
+    """确保版本号以 'v' 前缀开头。
 
-    content = re.sub(r"(?m)^AppVersion=.*$", f"AppVersion={version_value}", content)
-    content = re.sub(r"(?m)^OutputBaseFilename=.*$", f"OutputBaseFilename={output_base}", content)
+    Ensure version string starts with 'v' prefix.
+
+    参数 / Parameters:
+        version (str): 原始版本号，例如 "4.2.0" 或 "v4.2.0"
+
+    返回 / Return:
+        str: 带 'v' 前缀的版本号，例如 "v4.2.0"
+    """
+    return version if version.startswith("v") else f"v{version}"
+
+
+def update_inno_content(content: str, *, app_version: str, commit_hash: str) -> str:
+    """替换 ISS 模板中的 #define 预处理器变量，注入版本号和提交哈希。
+
+    Replace #define preprocessor variables in ISS template with version and commit hash.
+
+    参数 / Parameters:
+        content (str): ISS 模板原始内容
+        app_version (str): 应用版本号（将自动添加 'v' 前缀）
+        commit_hash (str): Git 提交哈希
+
+    返回 / Return:
+        str: 替换后的 ISS 内容
+    """
+    versioned = normalize_version(app_version)
+    content = re.sub(
+        r'(?m)^(#define\s+MyAppVersion\s+").*?(")\s*$',
+        rf'\g<1>{versioned}\2',
+        content,
+    )
+    content = re.sub(
+        r'(?m)^(#define\s+MyAppCommitHash\s+").*?(")\s*$',
+        rf'\g<1>{commit_hash}\2',
+        content,
+    )
     return content
 
 
@@ -465,13 +493,21 @@ def write_inno_script(
     *,
     app_version: str,
     commit_hash: str,
-    patch: bool,
-    label: str | None = None,
 ) -> None:
+    """读取 ISS 模板，注入版本号和哈希后写入目标路径。
+
+    Read ISS template, inject version and hash, write to destination.
+
+    参数 / Parameters:
+        template_path (Path): ISS 模板文件路径
+        destination_path (Path): 输出 ISS 文件路径
+        app_version (str): 应用版本号
+        commit_hash (str): Git 提交哈希
+    """
     content = template_path.read_text(encoding="utf-8")
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     destination_path.write_text(
-        update_inno_content(content, app_version=app_version, commit_hash=commit_hash, patch=patch, label=label),
+        update_inno_content(content, app_version=app_version, commit_hash=commit_hash),
         encoding="utf-8",
     )
 
@@ -486,20 +522,50 @@ def installer_staging_dir_name(label: str) -> str:
     raise ValueError(f"不支持的标准安装包标签: {label}")
 
 
+def inno_template_for(label: str) -> Path:
+    """根据构建标签返回对应的 ISS 模板路径。
+
+    Return the ISS template path for the given build label.
+
+    参数 / Parameters:
+        label (str): 构建标签，"lite" 或其他（Full/CPU/CUDA）
+
+    返回 / Return:
+        Path: ISS 模板文件路径
+    """
+    if label == "lite":
+        return LITE_INNO_TEMPLATE
+    return STANDARD_INNO_TEMPLATE
+
+
 def prepare_standard_installer_staging(source_bundle_dir: Path, staging_root: Path, config: BuildConfig, *, label: str) -> Path:
+    """准备标准安装包的 staging 目录，包含构建产物、ISS 脚本和依赖资源。
+
+    Prepare standard installer staging directory with build artifacts, ISS script and dependencies.
+
+    参数 / Parameters:
+        source_bundle_dir (Path): PyInstaller 构建产物目录
+        staging_root (Path): staging 根目录
+        config (BuildConfig): 构建配置
+        label (str): 构建标签（"cpu", "cuda", "lite"）
+
+    返回 / Return:
+        Path: 生成的 ISS 脚本路径
+    """
     staging_dir = staging_root / installer_staging_dir_name(label)
     copy_tree(source_bundle_dir, staging_dir)
+    template = inno_template_for(label)
+    iss_filename = template.name
     write_inno_script(
-        STANDARD_INNO_TEMPLATE,
-        staging_dir / "SuperPicky.iss",
+        template,
+        staging_dir / iss_filename,
         app_version=config.app_version,
         commit_hash=config.commit_hash,
-        patch=False,
-        label=label,
     )
     copy_file(INNO_LANGUAGE_FILE, staging_dir / INNO_LANGUAGE_FILE.name)
+    copy_tree(ROOT_DIR / "img", staging_dir / "img")
     log_verbose("[成功] 已准备标准安装包脚本目录: %s", staging_dir)
-    return staging_dir / "SuperPicky.iss"
+    return staging_dir / iss_filename
 
 
 def publish_standard_build(
@@ -606,14 +672,17 @@ def prepare_patch_installer_staging(portable_patch_dir: Path, config: BuildConfi
         staging_dir / PATCH_INNO_TEMPLATE.name,
         app_version=config.app_version,
         commit_hash=config.commit_hash,
-        patch=True,
     )
     log_verbose("[成功] 已准备 CUDA 补丁安装包脚本目录: %s", staging_dir)
     return staging_dir / PATCH_INNO_TEMPLATE.name
 
 
 def ensure_inno_templates() -> None:
-    for path in (STANDARD_INNO_TEMPLATE, PATCH_INNO_TEMPLATE, INNO_LANGUAGE_FILE):
+    """检查所有 Inno Setup 模板和依赖文件是否存在。
+
+    Verify all Inno Setup templates and dependency files exist.
+    """
+    for path in (STANDARD_INNO_TEMPLATE, LITE_INNO_TEMPLATE, PATCH_INNO_TEMPLATE, INNO_LANGUAGE_FILE):
         if not path.exists():
             raise FileNotFoundError(f"缺少 Inno 相关文件: {path}")
 
@@ -715,12 +784,23 @@ def run_cuda_patch_build(config: BuildConfig) -> None:
 
 
 def create_config(args: argparse.Namespace) -> BuildConfig:
+    """根据命令行参数创建构建配置。版本号自动添加 'v' 前缀。
+
+    Create build config from CLI arguments. Version is auto-prefixed with 'v'.
+
+    参数 / Parameters:
+        args (argparse.Namespace): 解析后的命令行参数
+
+    返回 / Return:
+        BuildConfig: 构建配置对象
+    """
+    raw_version = args.version or read_app_version()
     return BuildConfig(
         build_type=args.build_type,
         copy_dir=Path(args.copy_dir).resolve() if args.copy_dir else None,
         no_zip=args.no_zip,
         debug=args.debug,
-        app_version=args.version or read_app_version(),
+        app_version=normalize_version(raw_version),
         commit_hash=get_commit_hash(),
     )
 

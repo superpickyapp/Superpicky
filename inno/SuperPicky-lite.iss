@@ -2,11 +2,13 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 ; Non-commercial use only
 
-#define MyAppName "SuperPicky-Lite"
-#define MyAppVersion "v4.2.5-lite"
+#define MyAppName "SuperPicky"
+#define MyAppVersion "unknown"  
 #define MyAppPublisher "JamesPhotography"
 #define MyAppURL "superpicky.app"
 #define MyAppExeName "SuperPicky.exe"
+#define MyAppCommitHash "unknown"  
+#define OutputBaseFilename "SuperPicky_Setup_Lite_Win64_" + MyAppVersion + "_" + MyAppCommitHash
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -14,7 +16,7 @@
 AppId={{14FA9904-CE97-4FAC-84F3-3A7A705590FB}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-;AppVerName={#MyAppName} {#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -33,14 +35,14 @@ DisableProgramGroupPage=yes
 ; Remove the following line to run in administrative install mode (install for all users).
 PrivilegesRequired=lowest
 OutputDir=output
-OutputBaseFilename=SuperPicky-Lite_Setup
+OutputBaseFilename={#OutputBaseFilename}
 SetupIconFile=img\icon.ico
 SolidCompression=yes
 WizardStyle=modern dynamic
 
 [Languages]
+Name: "chinesesimplified"; MessagesFile: "ChineseSimplified.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkablealone
@@ -56,6 +58,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "https://superpicky.app/"; Description: "访问项目网站"; Flags: postinstall skipifsilent shellexec
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"

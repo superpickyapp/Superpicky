@@ -68,23 +68,30 @@ jobs:
           .\.venv\Scripts\python.exe -m pip install --upgrade pip
           .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
-      - name: Build CPU and CUDA patch release payloads
+      - name: Build Full release
         shell: pwsh
         env:
           RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
         run: |
           .\.venv\Scripts\python.exe scripts\download_models.py
-          .\.venv\Scripts\python.exe build_release_win.py --build-type cuda-patch --copy-dir output --debug --no-zip
+          .\.venv\Scripts\python.exe build_release_win.py --build-type cpu --copy-dir output --debug --no-zip
 
-      - name: Create CPU installer with Inno Setup
+      - name: Create Full installer with Inno Setup
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
         with:
           path: ./output/installer_cpu/SuperPicky.iss
 
-      - name: Create CUDA patch installer with Inno Setup
+      - name: Build Lite release
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          .\.venv\Scripts\python.exe build_release_win.py --build-type lite --copy-dir output --debug --no-zip
+
+      - name: Create Lite installer with Inno Setup
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
         with:
-          path: ./output/cuda_patch_installer/SuperPicky_CUDA_Patch.iss
+          path: ./output/installer_lite/SuperPicky-lite.iss
 
       - name: Prepare release assets
         shell: pwsh
@@ -92,8 +99,8 @@ jobs:
           New-Item -ItemType Directory -Path release_assets -Force | Out-Null
 
           $assetPatterns = @(
-            "output/cuda_patch_installer/Output/SuperPicky_CUDA_Patch_Win64_*.exe",
-            "output/installer_cpu/Output/SuperPicky_Setup_Win64_*.exe"
+            "output/installer_cpu/Output/SuperPicky_Setup_Full_Win64_*.exe",
+            "output/installer_lite/Output/SuperPicky_Setup_Lite_Win64_*.exe"
           )
 
           foreach ($pattern in $assetPatterns) {
