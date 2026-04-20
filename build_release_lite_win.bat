@@ -3,8 +3,7 @@ setlocal EnableExtensions
 
 set "PYTHON_EXE=%~dp0.venv\Scripts\python.exe"
 if not exist "%PYTHON_EXE%" (
-    echo [ERROR] Missing build python: %PYTHON_EXE%
-    exit /b 1
+    set "PYTHON_EXE=python"
 )
 
 "%PYTHON_EXE%" "%~dp0build_release_win.py" --build-type lite %*

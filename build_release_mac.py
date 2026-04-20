@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import ast
 import importlib.metadata
+import json
 import logging
 import os
 import platform
@@ -72,6 +73,11 @@ class BuildConfig:
     sign_p12_password_env: str
     sign_identity: str | None
     release_channel: str
+    notarize: bool
+    apple_id: str | None
+    apple_password_env: str
+    team_id: str | None
+    notary_keychain_profile: str | None
 
 
 @dataclass
@@ -126,6 +132,26 @@ def log_verbose(message: str, *args) -> None:
     logger.debug(message, *args)
 
 
+def detect_host_arch() -> str:
+    """
+    规范化当前主机架构 / Normalize the current host architecture.
+    """
+
+    machine = platform.machine().lower()
+    return {"amd64": "x86_64", "x86_64": "x86_64", "arm64": "arm64", "aarch64": "arm64"}.get(machine, machine)
+
+
+def optional_text(value: str | None) -> str | None:
+    """
+    规范化可选字符串 / Normalize optional text values.
+    """
+
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
 def parse_args() -> argparse.Namespace:
     """
     解析命令行参数 / Parse command-line arguments.
@@ -133,7 +159,12 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description="SuperPicky macOS 构建脚本")
     parser.add_argument("--build-type", choices=["full", "lite"], required=True, help="构建类型：full 或 lite")
-    parser.add_argument("--arch", choices=["arm64", "x86_64"], required=True, help="目标架构")
+    parser.add_argument(
+        "--arch",
+        choices=["arm64", "x86_64"],
+        default=detect_host_arch(),
+        help="目标架构，默认使用当前主机架构",
+    )
     parser.add_argument("--version", help="覆盖构建版本号，例如 4.2.5")
     parser.add_argument("--copy-dir", help="复制最终产物的目标目录")
     parser.add_argument("--debug", action="store_true", help="输出调试日志")
@@ -144,6 +175,15 @@ def parse_args() -> argparse.Namespace:
         help="读取 .p12 密码的环境变量名（默认: MACOS_CERTIFICATE_PWD）",
     )
     parser.add_argument("--sign-identity", help="可选，显式指定 Developer ID Application identity")
+    parser.add_argument("--notarize", action="store_true", help="提交 Apple 公证并自动 staple DMG")
+    parser.add_argument("--apple-id", help="Apple notarization 使用的 Apple ID")
+    parser.add_argument("--team-id", help="Apple notarization 使用的 Team ID")
+    parser.add_argument(
+        "--apple-password-env",
+        default="APPLE_APP_PASSWORD",
+        help="读取 notarization 密码的环境变量名（默认: APPLE_APP_PASSWORD）",
+    )
+    parser.add_argument("--notary-keychain-profile", help="可选，使用 notarytool keychain profile 进行认证")
     return parser.parse_args()
 
 
@@ -344,8 +384,7 @@ def ensure_arch_matches(target_arch: str) -> None:
     确保目标架构与当前机器匹配 / Ensure target architecture matches the host.
     """
 
-    machine = platform.machine().lower()
-    normalized = {"amd64": "x86_64", "x86_64": "x86_64", "arm64": "arm64", "aarch64": "arm64"}.get(machine, machine)
+    normalized = detect_host_arch()
     if normalized != target_arch:
         raise RuntimeError(
             f"当前机器架构为 {normalized}，不能直接构建 {target_arch}。"
@@ -758,6 +797,92 @@ def sign_dmg(dmg_path: Path, signing_context: SigningContext | None) -> None:
     log_verbose("[成功] DMG 签名校验通过")
 
 
+def notary_auth_arguments(config: BuildConfig) -> list[str]:
+    """
+    构造 notarytool 认证参数 / Build notarytool authentication arguments.
+    """
+
+    if config.notary_keychain_profile:
+        return ["--keychain-profile", config.notary_keychain_profile]
+
+    if not config.apple_id:
+        raise RuntimeError("启用 --notarize 时必须提供 Apple ID 或设置 APPLE_ID 环境变量")
+    if not config.team_id:
+        raise RuntimeError("启用 --notarize 时必须提供 Team ID 或设置 MACOS_TEAM_ID/TEAM_ID 环境变量")
+
+    password = os.environ.get(config.apple_password_env, "").strip()
+    if not password:
+        raise RuntimeError(f"启用 --notarize 时必须设置环境变量 {config.apple_password_env}")
+
+    return [
+        "--apple-id",
+        config.apple_id,
+        "--password",
+        password,
+        "--team-id",
+        config.team_id,
+    ]
+
+
+def notarize_dmg(dmg_path: Path, config: BuildConfig) -> None:
+    """
+    公证并装订 DMG / Notarize and staple the DMG.
+    """
+
+    if not config.notarize:
+        log_verbose("[信息] 未启用 --notarize，跳过 Apple 公证")
+        return
+
+    log_step("步骤 11: Apple 公证并装订")
+    auth_args = notary_auth_arguments(config)
+    submit_command = [
+        "xcrun",
+        "notarytool",
+        "submit",
+        str(dmg_path),
+        *auth_args,
+        "--wait",
+        "--output-format",
+        "json",
+    ]
+    result = run_command(submit_command, capture_output=True, label="Apple 公证")
+    output = result.stdout.strip()
+    if output:
+        logger.info(output)
+
+    status = ""
+    request_id = ""
+    if output:
+        try:
+            payload = json.loads(output)
+        except json.JSONDecodeError:
+            payload = None
+        if isinstance(payload, dict):
+            status = str(payload.get("status", "")).strip().lower()
+            request_id = str(payload.get("id", "")).strip()
+        elif "Accepted" in output:
+            status = "accepted"
+
+    if status != "accepted":
+        if request_id:
+            log_verbose("[信息] 公证失败，尝试读取详细日志: %s", request_id)
+            log_result = run_command(
+                ["xcrun", "notarytool", "log", request_id, *auth_args],
+                capture_output=True,
+                check=False,
+                label="读取公证日志",
+            )
+            if log_result.stdout:
+                logger.error(log_result.stdout.strip())
+            if log_result.stderr:
+                logger.error(log_result.stderr.strip())
+        raise RuntimeError("Apple 公证失败")
+
+    run_command(["xcrun", "stapler", "staple", str(dmg_path)], label="装订公证票据")
+    run_command(["xcrun", "stapler", "validate", str(dmg_path)], label="验证公证票据")
+    log_verbose("[成功] DMG 公证与装订完成")
+
+
 def publish_artifacts(paths: BuildPaths, config: BuildConfig) -> tuple[Path, Path]:
     """
     输出最终产物位置 / Publish final artifact locations.
@@ -802,8 +927,20 @@ def create_config(args: argparse.Namespace) -> BuildConfig:
         commit_hash=get_commit_hash(),
         sign_p12=Path(args.sign_p12).resolve() if args.sign_p12 else None,
         sign_p12_password_env=args.sign_p12_password_env,
-        sign_identity=args.sign_identity,
+        sign_identity=optional_text(args.sign_identity),
         release_channel=parse_release_channel(),
+        notarize=args.notarize,
+        apple_id=optional_text(args.apple_id) or optional_text(os.environ.get("APPLE_ID")),
+        apple_password_env=args.apple_password_env,
+        team_id=(
+            optional_text(args.team_id)
+            or optional_text(os.environ.get("MACOS_TEAM_ID"))
+            or optional_text(os.environ.get("TEAM_ID"))
+        ),
+        notary_keychain_profile=(
+            optional_text(args.notary_keychain_profile)
+            or optional_text(os.environ.get("NOTARY_KEYCHAIN_PROFILE"))
+        ),
     )
 
 
@@ -827,9 +964,12 @@ def run_build(config: BuildConfig) -> None:
     signing_context: SigningContext | None = None
     try:
         signing_context = prepare_signing(config)
+        if config.notarize and signing_context is None and not config.sign_identity:
+            raise RuntimeError("启用 --notarize 时必须提供 --sign-p12 或 --sign-identity 以完成正式签名")
         sign_app_bundle(paths.app_dir, signing_context)
         create_dmg(config, paths)
         sign_dmg(paths.dmg_path, signing_context)
+        notarize_dmg(paths.dmg_path, config)
         final_app, final_dmg = publish_artifacts(paths, config)
         logger.info("[========================================]")
         logger.info("构建完成")

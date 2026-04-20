@@ -21,6 +21,7 @@ import re
 import shutil
 import subprocess
 import sys
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -180,6 +181,7 @@ def load_required_models() -> list[dict[str, str]]:
         {"filename": "cub200_keypoint_resnet50_slim.pth", "dest_dir": "models"},
         {"filename": "avonet.db", "dest_dir": "birdid/data"},
         {"filename": "cfanet_iaa_ava_res50-3cd62bb3.pth", "dest_dir": "models"},
+        {"filename": "yolo11l-seg.pt", "dest_dir": "models"},
     ]
 
     if not DOWNLOAD_MODELS_SCRIPT.exists():
@@ -404,42 +406,18 @@ def build_bundle(python_exe: Path, build_paths: BuildPaths, spec_file: Path) -> 
     log_verbose("[成功] %s 构建完成", build_paths.label.upper())
 
 
-def find_7z_executable() -> str:
-    candidates = [
-        shutil.which("7z"),
-        shutil.which("7zz"),
-        shutil.which("7za"),
-        str(Path("C:/Program Files/7-Zip/7z.exe")),
-        str(Path("C:/Program Files (x86)/7-Zip/7z.exe")),
-    ]
-    for candidate in candidates:
-        if not candidate:
-            continue
-        if Path(candidate).exists():
-            return candidate
-    raise FileNotFoundError("未找到 7z 可执行文件，请先安装 7-Zip 或确保 7z/7zz/7za 已加入 PATH")
-
-
 def create_zip_archive(source_dir: Path, archive_path: Path) -> None:
+    """
+    使用标准库创建 ZIP 包 / Create ZIP archives with the Python standard library.
+    """
+
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     archive_path.unlink(missing_ok=True)
-    seven_zip = find_7z_executable()
-    run_command(
-        [
-            seven_zip,
-            "a",
-            "-tzip",
-            "-mx=9",
-            "-mm=LZMA",
-            "-md=256m",
-            "-mfb=128",
-            "-mmt=on",
-            str(archive_path),
-            source_dir.name,
-        ],
-        cwd=source_dir.parent,
-        label="ZIP 压缩",
-    )
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        for file_path in sorted(source_dir.rglob("*")):
+            if file_path.is_dir():
+                continue
+            archive.write(file_path, arcname=str(Path(source_dir.name) / file_path.relative_to(source_dir)))
 
 
 def archive_name_for(label: str, app_version: str, commit_hash: str) -> str:
