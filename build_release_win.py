@@ -705,9 +705,8 @@ def run_cpu_or_cuda_build(config: BuildConfig) -> None:
 
 
 def run_lite_build(config: BuildConfig) -> None:
-    build_python = python_in_venv(CPU_VENV_DIR)
-    if not build_python.exists():
-        raise FileNotFoundError(f"未找到 Lite 构建所需 Python: {build_python}")
+    bootstrap_python = Path(sys.executable)
+    build_python = ensure_cpu_environment(bootstrap_python)
 
     clean_build_outputs()
     _, final_bundle, zip_path, installer_script_path = build_single_target(config, "lite", build_python)

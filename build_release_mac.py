@@ -352,6 +352,22 @@ def app_name_for(build_type: str) -> str:
     return LITE_APP_NAME if build_type == "lite" else APP_NAME
 
 
+def artifact_name_for(build_type: str) -> str:
+    """
+    返回发布产物名称前缀 / Return the artifact name prefix for releases.
+    """
+
+    return "SuperPicky_Lite" if build_type == "lite" else APP_NAME
+
+
+def display_name_for(build_type: str) -> str:
+    """
+    返回面向用户的展示名称 / Return the user-facing display name.
+    """
+
+    return "SuperPicky Lite" if build_type == "lite" else APP_NAME
+
+
 def get_build_paths(build_type: str, arch: str, app_version: str, commit_hash: str) -> BuildPaths:
     """
     生成构建路径 / Build output paths.
@@ -359,8 +375,9 @@ def get_build_paths(build_type: str, arch: str, app_version: str, commit_hash: s
 
     label = f"{build_type}_{arch}"
     app_name = app_name_for(build_type)
+    artifact_name = artifact_name_for(build_type)
     dist_dir = ROOT_DIR / f"dist_{label}"
-    dmg_name = f"{app_name}_v{app_version}_{arch}_{commit_hash}_{build_type}.dmg"
+    dmg_name = f"{artifact_name}_v{app_version}_{arch}_{commit_hash}.dmg"
     return BuildPaths(
         label=label,
         work_dir=ROOT_DIR / f"build_dist_{label}",
@@ -626,7 +643,7 @@ def create_dmg(config: BuildConfig, paths: BuildPaths) -> None:
             "hdiutil",
             "create",
             "-volname",
-            f"{app_name_for(config.build_type)} {config.app_version}",
+            f"{display_name_for(config.build_type)} {config.app_version}",
             "-srcfolder",
             str(staging_dir),
             "-ov",
