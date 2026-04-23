@@ -173,9 +173,10 @@ def probe_sources(
         logging.info("使用缓存的探测结果: %s", group_name)
         return list(_PROBE_CACHE[group_name])
 
-    logging.info("开始探测源组: %s，共 %d 个源", group_name, len(list(sources)))
+    sources_list = list(sources)
+    logging.info("开始探测源组: %s，共 %d 个源", group_name, len(sources_list))
     results: List[ProbeResult] = []
-    for source in sources:
+    for source in sources_list:
         results.append(probe_url(source["name"], source["url"], timeout=timeout))
 
     _PROBE_CACHE[group_name] = list(results)
