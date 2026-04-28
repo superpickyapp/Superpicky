@@ -1,3 +1,7 @@
+> ⚠️ **本仓库已迁移回 [jamesphotography/SuperPicky](https://github.com/jamesphotography/SuperPicky)，不再在此维护。** 所有后续开发、发布与下载都在主仓库进行。请访问官方网站 [superpicky.app](https://superpicky.app/)。
+
+---
+
 # SuperPicky - 慧眼选鸟 
 
 [![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/jamesphotography/SuperPicky)
