@@ -1,3 +1,7 @@
+> ⚠️ **This repository has been migrated back to [jamesphotography/SuperPicky](https://github.com/jamesphotography/SuperPicky) and is no longer maintained here.** All future development, releases, and downloads will be on the main repository. Visit the official site at [superpicky.app](https://superpicky.app/).
+
+---
+
 # SuperPicky - AI Bird Photo Culling Tool 🦅
 
 [![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/jamesphotography/SuperPicky)
